@@ -30,7 +30,9 @@ class Options():
   format = 'tar.gz'
   archive = '%s.%s' % (prefix, format)
   version = None
-  patch = None
+  patchlevel = None
+  subversion = None
+  extraversion = None
 
 def out(line):
   sys.stdout.write(line)
@@ -94,27 +96,40 @@ def download_file(file_name):
   
 
 def get_kernel_info(options):
-  flag_ver = False
-  flag_patch = False
+  flag_version = False
+  flag_patchlevel = False
+  flag_sublevel = False
+  flag_extraversion = False
   with open('Makefile', 'r') as f:
     for line in f:
       if 'VERSION' in line:
-        if not flag_ver:
+        if not flag_version:
           version = line.split(" ")
           options.version = re.sub('\n', '', version[2])
-          flag_ver = True
+          flag_version = True
         else:
           continue
       if 'PATCHLEVEL' in line:
-        if not flag_patch:
-          patch = line.split(" ")
-          options.patch = re.sub('\n', '', patch[2])
-          flag_patch = True
+        if not flag_patchlevel:
+          patchlevel = line.split(" ")
+          options.patchlevel = re.sub('\n', '', patchlevel[2])
+          flag_patchlevel = True
         else:
           continue
-
-#      line.split
-#      options.version = 
+      if 'SUBLEVEL' in line:
+        if not flag_sublevel:
+          sublevel = line.split(" ")
+          options.sublevel = re.sub('\n', '', sublevel[2])
+          flag_sublevel = True
+        else:
+          continue
+      if 'EXTRAVERSION' in line:
+        if not flag_extraversion:
+          extraversion = line.split(" ")
+          options.extraversion = re.sub('\n', '', extraversion[3])
+          flag_extraversion = True
+        else:
+          continue
 
 def make_rpm():
   os.makedirs('rpms/%s' % sha)
@@ -128,7 +143,7 @@ def main():
   options = Options()
 #  archive(options)
   get_kernel_info(options)
-  print "Version: %s.%s" % (options.version, options.patch)
+  print "Version: %s.%s.%s%s" % (options.version, options.patchlevel, options.sublevel, options.extraversion)
 #  download_file('config-local')
 """
   if len(sys.argv) == 1:
