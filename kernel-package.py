@@ -30,10 +30,11 @@ class Options():
   prefix = '%s-%s' % (name, sha)
   format = 'tar.gz'
   archive = '%s.%s' % (prefix, format)
-  version = None
-  patchlevel = None
-  subversion = None
-  extraversion = None
+  ver = [None, None, None, None]
+  version = ver[0]
+  patchlevel = ver[1]
+  sublevel = ver[2]
+  extraversion = ver[3]
   configs = ['config-debug', 'config-generic', 'config-i686-PAE', \
              'config-nodebug', 'config-x86-32-generic', \
              'config-x86-generic', 'config-x86_64-generic']
@@ -46,7 +47,7 @@ class Parser(argparse.ArgumentParser):
 
 def set_args(parser):
   parser.add_argument('--download-configs', dest='dlcfg', action='store_true', help='download latest Fedora kernel configs')
-  parser.add_argument('--with-patches', dest='patches', action='store_true', help='start bisecting')
+  parser.add_argument('--with-patches', dest='patches', action='store_true', help='enable patches from sources/ directory')
   parser.add_argument('--arch', action='store', help='arch')
 
 def archive(options):
@@ -68,43 +69,16 @@ def download_configs(options):
     download_file(config)
 
 def get_kernel_info(options):
-  flag_version = False
-  flag_patchlevel = False
-  flag_sublevel = False
-  flag_extraversion = False
+  lines = []
   with open('Makefile', 'r') as f:
-    for line in f:
-      if 'VERSION' in line:
-        if not flag_version:
-          version = line.split(" ")
-          options.version = re.sub('\n', '', version[2])
-          flag_version = True
-        else:
-          continue
-      if 'PATCHLEVEL' in line:
-        if not flag_patchlevel:
-          patchlevel = line.split(" ")
-          options.patchlevel = re.sub('\n', '', patchlevel[2])
-          flag_patchlevel = True
-        else:
-          continue
-      if 'SUBLEVEL' in line:
-        if not flag_sublevel:
-          sublevel = line.split(" ")
-          options.sublevel = re.sub('\n', '', sublevel[2])
-          flag_sublevel = True
-        else:
-          continue
-      if 'EXTRAVERSION' in line:
-        if not flag_extraversion:
-          extraversion = line.split(" ")
-          options.extraversion = re.sub('\n', '', extraversion[2])
-          flag_extraversion = True
-        else:
-          continue
+    lines = [f.next() for x in xrange(4)]
+  i = 0
+  for line in lines:
+    options.ver[i] = re.sub(r"^.* (.*)\n$", r"\1", line)
+    i += 1
 
-def make_rpm():
-  os.makedirs('rpms/%s' % sha)
+#def make_rpm():
+  
 
 #def create_spec():
   
@@ -115,7 +89,8 @@ def main():
   args = parser.parse_args()
   options = Options()
   get_kernel_info(options)
-  print "Version: %s.%s.%s%s" % (options.version, options.patchlevel, options.sublevel, options.extraversion)
+#  print "Version: %s.%s.%s%s" % (options.version, options.patchlevel, options.sublevel, options.extraversion)
+  print "Version: %s.%s.%s%s" % (options.ver[0], options.ver[1], options.ver[2], options.ver[3])
 #  Enable after write make rpm
 #  archive(options)
   if args.dlcfg:
