@@ -1,4 +1,4 @@
 kernel-package
 ==============
 
-Make RPM from upstream kernel easy.
+Make RPMs from upstream kernel easy.
