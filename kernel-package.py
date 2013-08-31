@@ -138,19 +138,16 @@ def make_rpm():
   
 
 def main():
-  parser = Parser(description='Make RPM from upstream linux kernel easy')
-  set_args(parser)
-  options = Options()
+#  Enable after write make rpm
+#  parser = Parser(description='Make RPM from upstream linux kernel easy')
+#  set_args(parser)
+#  args = parser.parse_args()
 #  archive(options)
+  options = Options()
   get_kernel_info(options)
   print "Version: %s.%s.%s%s" % (options.version, options.patchlevel, options.sublevel, options.extraversion)
+#Download files as option
 #  download_file('config-local')
-"""
-  if len(sys.argv) == 1:
-    parser.print_help()
-    sys.exit(1)
-"""
-#  args = parser.parse_args()
 
 if __name__ == "__main__":
   main()
