@@ -13,7 +13,8 @@ import os
 import sys
 import ConfigParser
 import argparse
-import urllib
+import urlgrabber
+import urlgrabber.progress
 import git
 import re
 import sh
@@ -33,12 +34,9 @@ class Options():
   patchlevel = None
   subversion = None
   extraversion = None
-
-def out(line):
-  sys.stdout.write(line)
-
-def err(line):
-  sys.stderr.write(line)
+  configs = ['config-debug', 'config-generic', 'config-i686-PAE', \
+             'config-nodebug', 'config-x86-32-generic', \
+             'config-x86-generic', 'config-x86_64-generic']
 
 class Parser(argparse.ArgumentParser):
   def error(self, message):
@@ -47,53 +45,27 @@ class Parser(argparse.ArgumentParser):
     sys.exit(2)
 
 def set_args(parser):
-  parser.add_argument('--with-patches', action='store_true', help='start bisecting')
-  parser.add_argument('--with-patch', action='store', metavar='/path/to/patch', help='reset bisecting')
+  parser.add_argument('--download-configs', dest='dlcfg', action='store_true', help='download latest Fedora kernel configs')
+  parser.add_argument('--with-patches', dest='patches', action='store_true', help='start bisecting')
   parser.add_argument('--arch', action='store', help='arch')
 
 def archive(options):
-  f = open(options.archive, 'w')
+  os.makedirs('sources')
+  f = open('sources/%s' % options.archive, 'w')
   repo.archive(f, prefix=options.prefix, format=options.format)
   f.close()
 
-def print_commit():
-  print "HEAD commit: %s\n" % sha
-
-"""
-def bisect(args):
-  state = None
-  commit = ''
-  if args.start:
-    state = 'start'
-  elif args.reset:
-    state = 'reset'
-  elif args.skip:
-    state = 'skip'
-    commit = args.skip
-  elif args.good:
-    state = 'good'
-    commit = args.good
-  elif args.bad:
-    state = 'bad'
-    commit = args.bad
-  elif args.log:
-    state = 'log'
-  else:
-    err('Nothing to do. Use -h for help.' + '\n')
-    sys.exit(1)
-
-  try:
-    sh.git.bisect(state, commit, _out=out, _err=err)
-  except:
-    pass
-"""
-
 def download_file(file_name):
-  os.makedirs('files')
-  urllib.urlretrieve('http://pkgs.fedoraproject.org/cgit/kernel.git/plain/%s' % file_name, 'files/%s' % file_name)
+  try:
+    os.makedirs('sources')
+  except OSError:
+    pass
+  pg = urlgrabber.progress.TextMeter()
+  urlgrabber.urlgrab('http://pkgs.fedoraproject.org/cgit/kernel.git/plain/%s' % file_name, 'sources/%s' % file_name, progress_obj=pg)
 
-#def make_config()
-  
+def download_configs(options):
+  for config in options.configs:
+    download_file(config)
 
 def get_kernel_info(options):
   flag_version = False
@@ -126,7 +98,7 @@ def get_kernel_info(options):
       if 'EXTRAVERSION' in line:
         if not flag_extraversion:
           extraversion = line.split(" ")
-          options.extraversion = re.sub('\n', '', extraversion[3])
+          options.extraversion = re.sub('\n', '', extraversion[2])
           flag_extraversion = True
         else:
           continue
@@ -138,16 +110,16 @@ def make_rpm():
   
 
 def main():
-#  Enable after write make rpm
-#  parser = Parser(description='Make RPM from upstream linux kernel easy')
-#  set_args(parser)
-#  args = parser.parse_args()
-#  archive(options)
+  parser = Parser(description='Make RPM from upstream linux kernel easy')
+  set_args(parser)
+  args = parser.parse_args()
   options = Options()
   get_kernel_info(options)
   print "Version: %s.%s.%s%s" % (options.version, options.patchlevel, options.sublevel, options.extraversion)
-#Download files as option
-#  download_file('config-local')
+#  Enable after write make rpm
+#  archive(options)
+  if args.dlcfg:
+    download_configs(options)
 
 if __name__ == "__main__":
   main()
