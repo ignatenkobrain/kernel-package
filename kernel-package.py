@@ -4,9 +4,10 @@
 # Author(s): Igor Gnatenko <i.gnatenko.brain AT gmail DOT com>
 #            Bjorn Esser <bjoern.esser AT gmail DOT com>
 #
-# This program is free software; you can redistribute it and/or modify it
-# under the terms of the GNU General Public License as published by the
-# Free Software Foundation; version 2 of the License.
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# any later version.
 # See http://www.gnu.org/copyleft/gpl.html for the full text of the license.
 
 import os
