@@ -80,23 +80,39 @@ def download_sources(options):
 
 def parse_spec(options):
   lines = []
+  filters = ["^[ ]*#", "^\n"]
+  expressions = [re.compile(x) for x in filters]
   with open("%s/%s.spec" % (options.directory, options.name), "r") as f:
     lines = f.readlines()
+  lines_parsed = [s for s in lines if not len(filter(lambda re: re.match(s), expressions))]
+  lines = []
+  i = 0
+  while i < len(lines_parsed):
+    line = lines_parsed[i]
+    if re.search("^%changelog", lines_parsed[i]):
+      try:
+        while True:
+          del lines_parsed[i]
+      except IndexError:
+        pass
+    elif re.search("^Source0: ", lines_parsed[i]):
+      lines_parsed[i] = re.sub(r" .*$", " %s" % options.archive, lines_parsed[i])
+      i += 1
+    elif re.search("^Source[1-9][0-9]+: ", lines_parsed[i]):
+      flag = True
+      for config in options.configs:
+        if re.search("^Source[1-9][0-9]+: %s" % config, line):
+          flag = False
+          break
+      if flag:
+        del lines_parsed[i]
+      else:
+        i += 1
+    else:
+      i += 1
   f = open("%s/%s.spec" % (options.directory, options.name), "w")
-  for line in lines:
-    for config in options.configs:
-      if re.search("^Source[1-9][0-9]+: %s" % config, line):
-        f.write(line)
-    if re.search ("^%changelog", line):
-      break
-    if not re.search("^[ ]*#", line) and \
-       not re.search("^Source[1-9][0-9]+: ", line) and \
-       not re.search("^\n$", line):
-      if re.search ("^Source0: ", line):
-        line = re.sub(r" .*$", " %s" % options.archive, line)
-      if re.search("%global released_kernel [01]", line):
-        line = re.sub(r"[01]$", "1" if options.released else "0", line)
-      f.write(line)
+  for line in lines_parsed:
+    f.write(line)
   f.close()
 
 def get_kernel_info(options):
