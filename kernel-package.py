@@ -32,10 +32,10 @@ class Options():
   format = 'tar.gz'
   archive = '%s.%s' % (prefix, format)
   ver = [None, None, None, None]
-  version = ver[0]
-  patchlevel = ver[1]
-  sublevel = ver[2]
-  extraversion = ver[3]
+#  version = ver[0]
+#  patchlevel = ver[1]
+#  sublevel = ver[2]
+#  extraversion = ver[3]
   configs = ['config-debug', 'config-generic', 'config-i686-PAE', \
              'config-nodebug', 'config-x86-32-generic', \
              'config-x86-generic', 'config-x86_64-generic']
@@ -47,9 +47,10 @@ class Parser(argparse.ArgumentParser):
     sys.exit(2)
 
 def set_args(parser):
-  parser.add_argument('--download-configs', dest='dlcfg', action='store_true', help='download latest Fedora kernel configs')
-  parser.add_argument('--with-patches', dest='patches', action='store_true', help='enable patches from sources/ directory')
-  parser.add_argument('--arch', action='store', help='arch')
+  parser.add_argument('--download-configs', dest='dlcfg', action='store_true', \
+                      help='download latest Fedora kernel configs')
+#  parser.add_argument('--with-patches', dest='patches', action='store_true', \
+#                      help='enable patches from sources/ directory')
 
 def archive(options):
   os.makedirs('sources')
@@ -63,7 +64,8 @@ def download_file(file_name):
   except OSError:
     pass
   pg = urlgrabber.progress.TextMeter()
-  urlgrabber.urlgrab('http://pkgs.fedoraproject.org/cgit/kernel.git/plain/%s' % file_name, 'sources/%s' % file_name, progress_obj=pg)
+  urlgrabber.urlgrab('http://pkgs.fedoraproject.org/cgit/kernel.git/plain/%s' % file_name, \
+                     'sources/%s' % file_name, progress_obj=pg)
 
 def download_configs(options):
   for config in options.configs:
@@ -96,6 +98,7 @@ def main():
 #  archive(options)
   if args.dlcfg:
     download_configs(options)
+  sys.exit(0)
 
 if __name__ == "__main__":
   main()
