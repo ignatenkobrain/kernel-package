@@ -34,12 +34,13 @@ class Options():
   directory = "sources"
   ver = [None, None, None, None, None]
   released = False
-  sources = ["Makefile", "Makefile.config", "Makefile.release", \
-             "config-arm64", "config-arm-generic", "config-armv7", "config-armv7-generic", \
+  sources = ["config-arm64", "config-arm-generic", "config-armv7", "config-armv7-generic", \
              "config-armv7-lpae", "config-debug", "config-generic", "config-i686-PAE", \
              "config-local", "config-nodebug", "config-powerpc32-generic", "config-powerpc32-smp", \
              "config-powerpc64", "config-powerpc64p7", "config-powerpc-generic", "config-s390x", \
-             "config-x86-32-generic", "config-x86_64-generic", "config-x86-generic"]
+             "config-x86-32-generic", "config-x86_64-generic", "config-x86-generic", \
+             "cpupower.config", "cpupower.service", "Makefile", "Makefile.config", "Makefile.release", \
+             "merge.pl", "mod-extra.list", "mod-extra.sh", "mod-sign.sh", "x509.genkey"]
 
 class Parser(argparse.ArgumentParser):
   def error(self, message):
