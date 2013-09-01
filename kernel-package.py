@@ -34,13 +34,12 @@ class Options():
   directory = "sources"
   ver = [None, None, None, None, None]
   released = False
-#  version = ver[0]
-#  patchlevel = ver[1]
-#  sublevel = ver[2]
-#  extraversion = ver[3]
-  configs = ["config-debug", "config-generic", "config-i686-PAE", \
-             "config-nodebug", "config-x86-32-generic", \
-             "config-x86-generic", "config-x86_64-generic"]
+  sources = ["Makefile", "Makefile.config", "Makefile.release", \
+             "config-arm64", "config-arm-generic", "config-armv7", "config-armv7-generic", \
+             "config-armv7-lpae", "config-debug", "config-generic", "config-i686-PAE", \
+             "config-local", "config-nodebug", "config-powerpc32-generic", "config-powerpc32-smp", \
+             "config-powerpc64", "config-powerpc64p7", "config-powerpc-generic", "config-s390x", \
+             "config-x86-32-generic", "config-x86_64-generic", "config-x86-generic"]
 
 class Parser(argparse.ArgumentParser):
   def error(self, message):
@@ -67,15 +66,15 @@ def download_file(file_name):
   urlgrabber.urlgrab("http://pkgs.fedoraproject.org/cgit/kernel.git/plain/%s" % file_name, \
                      "sources/%s" % file_name, progress_obj=pg)
 
-def download_configs(options):
-  for config in options.configs:
-    download_file(config)
+def download_sources(options):
+  for source in options.sources:
+    download_file(source)
 
 def download_spec(options):
   download_file("%s.spec" % options.name)
 
-def download_sources(options):
-  download_configs(options)
+def download_files(options):
+  download_sources(options)
   download_spec(options)
 
 def parse_spec(options):
@@ -88,26 +87,41 @@ def parse_spec(options):
   lines = []
   i = 0
   while i < len(lines_parsed):
-    line = lines_parsed[i]
     if re.search("^%changelog", lines_parsed[i]):
       try:
         while True:
           del lines_parsed[i]
       except IndexError:
         pass
+    elif re.search("^%global released_kernel [01]", lines_parsed[i]):
+      lines_parsed[i] = re.sub(r"[01]", "1" if options.released else "0", lines_parsed[i])
+      i += 1
+    elif re.search("^%define rcrev [0-9]+", lines_parsed[i]):
+      lines_parsed[i] = re.sub(r"[0-9]+", re.sub(r"[^0-9]", "", options.ver[3]) if not options.released \
+                                          else "0", lines_parsed[i])
+      i += 1
+    elif re.search("^%define gitrev [0-9]+", lines_parsed[i]):
+      lines_parsed[i] = re.sub(r"[0-9]+", "0", lines_parsed[i])
+      i += 1
+    elif re.search("^%define debugbuildsenabled [01]", lines_parsed[i]):
+      lines_parsed[i] = re.sub(r"[01]", "1", lines_parsed[i])
+      i += 1
+    elif re.search("^%define rawhide_skip_docs [01]", lines_parsed[i]):
+      lines_parsed[i] = re.sub(r"[01]", "0", lines_parsed[i])
+      i += 1
     elif re.search("^Source0: ", lines_parsed[i]):
       lines_parsed[i] = re.sub(r" .*$", " %s" % options.archive, lines_parsed[i])
       i += 1
-    elif re.search("^Source[1-9][0-9]+: ", lines_parsed[i]):
-      flag = True
-      for config in options.configs:
-        if re.search("^Source[1-9][0-9]+: %s" % config, line):
-          flag = False
-          break
-      if flag:
-        del lines_parsed[i]
-      else:
-        i += 1
+#    elif re.search("^Source[1-9][0-9]+: ", lines_parsed[i]):
+#      flag = True
+#      for config in options.sources:
+#        if re.search("^Source[1-9][0-9]+: %s" % config, lines_parsed[i]):
+#          flag = False
+#          break
+#      if flag:
+#        del lines_parsed[i]
+#      else:
+#        i += 1
     else:
       i += 1
   f = open("%s/%s.spec" % (options.directory, options.name), "w")
@@ -140,7 +154,7 @@ def main():
   else:
     print "Version: %s.%s.%s%s" % (options.ver[0], options.ver[1], options.ver[2], options.ver[3])
   print "Codename: %s" % options.ver[4]
-  download_sources(options)
+  download_files(options)
   parse_spec(options)
 #  Enable after write make rpm
 #  archive(options)
