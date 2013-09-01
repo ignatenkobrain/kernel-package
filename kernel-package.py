@@ -79,7 +79,7 @@ def download_sources(options):
 
 def parse_spec(options):
   lines = []
-  regexp = re.compile(r"^#")
+  regexp = re.compile(r"^[ ]*#")
   with open('%s/%s.spec' % (options.directory, options.name), 'r') as f:
     lines = f.readlines()
   f = open('%s/%s.spec' % (options.directory, options.name), 'w')
