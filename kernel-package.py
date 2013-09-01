@@ -79,17 +79,21 @@ def download_sources(options):
 
 def parse_spec(options):
   lines = []
-  regexp = re.compile(r"^[ ]*#")
+  regexp_comment = re.compile(r"^[ ]*#")
+  regexp_sources = re.compile(r"^Source[1-9][0-9]+")
+  regexp_newline = re.compile(r"^\n$")
   with open('%s/%s.spec' % (options.directory, options.name), 'r') as f:
     lines = f.readlines()
   f = open('%s/%s.spec' % (options.directory, options.name), 'w')
   for line in lines:
     if '%changelog' in line:
       break
-    if regexp.search(line) is None:
-      if 'Source0: ' in line:
-        line = re.sub(r" .*$", " %s" % options.archive, line)
-      f.write(line)
+    if regexp_comment.search(line) is None:
+      if regexp_sources.search(line) is None:
+        if regexp_newline.search(line) is None:
+          if 'Source0: ' in line:
+            line = re.sub(r" .*$", " %s" % options.archive, line)
+          f.write(line)
   f.close()
 
 def get_kernel_info(options):
