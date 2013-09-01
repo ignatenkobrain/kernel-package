@@ -92,7 +92,7 @@ def parse_spec(options):
     if regexp_comment.search(line) is None and \
        regexp_sources.search(line) is None and \
        regexp_newline.search(line) is None:
-      if re.search ("Source0: ", line):
+      if re.search ("^Source0: ", line):
         line = re.sub(r" .*$", " %s" % options.archive, line)
       if re.search("%global released_kernel [01]", line):
         line = re.sub(r"[01]$", "1" if options.released else "0", line)
