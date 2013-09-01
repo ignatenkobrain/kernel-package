@@ -87,6 +87,8 @@ def parse_spec(options):
     if '%changelog' in line:
       break
     if regexp.search(line) is None:
+      if 'Source0: ' in line:
+        line = re.sub(r" .*$", " %s" % options.archive, line)
       f.write(line)
   f.close()
 
