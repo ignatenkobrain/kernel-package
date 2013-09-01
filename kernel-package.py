@@ -31,6 +31,7 @@ class Options():
   prefix = '%s-%s' % (name, sha)
   format = 'tar.gz'
   archive = '%s.%s' % (prefix, format)
+  directory = 'sources'
   ver = [None, None, None, None]
 #  version = ver[0]
 #  patchlevel = ver[1]
@@ -47,14 +48,12 @@ class Parser(argparse.ArgumentParser):
     sys.exit(2)
 
 def set_args(parser):
-  parser.add_argument('--download-configs', dest='dlcfg', action='store_true', \
-                      help='download latest Fedora kernel configs')
-#  parser.add_argument('--with-patches', dest='patches', action='store_true', \
-#                      help='enable patches from sources/ directory')
+  parser.add_argument('--with-patches', dest='patches', action='store_true', \
+                      help='enable patches from sources/ directory')
 
 def archive(options):
-  os.makedirs('sources')
-  f = open('sources/%s' % options.archive, 'w')
+  os.makedirs(options.directory)
+  f = open('%s/%s' % (options.directory, options.archive), 'w')
   repo.archive(f, prefix=options.prefix, format=options.format)
   f.close()
 
@@ -71,6 +70,26 @@ def download_configs(options):
   for config in options.configs:
     download_file(config)
 
+def download_spec(options):
+  download_file('%s.spec' % options.name)
+
+def download_sources(options):
+  download_configs(options)
+  download_spec(options)
+
+def parse_spec(options):
+  lines = []
+  regexp = re.compile(r"^#")
+  with open('%s/%s.spec' % (options.directory, options.name), 'r') as f:
+    lines = f.readlines()
+  f = open('%s/%s.spec' % (options.directory, options.name), 'w')
+  for line in lines:
+    if '%changelog' in line:
+      break
+    if regexp.search(line) is None:
+      f.write(line)
+  f.close()
+
 def get_kernel_info(options):
   lines = []
   with open('Makefile', 'r') as f:
@@ -80,24 +99,18 @@ def get_kernel_info(options):
     options.ver[i] = re.sub(r"^.* (.*)\n$", r"\1", line)
     i += 1
 
-#def make_rpm():
-  
-
-#def create_spec():
-  
-
 def main():
   parser = Parser(description='Make RPM from upstream linux kernel easy')
-  set_args(parser)
+#  set_args(parser)
   args = parser.parse_args()
   options = Options()
   get_kernel_info(options)
 #  print "Version: %s.%s.%s%s" % (options.version, options.patchlevel, options.sublevel, options.extraversion)
   print "Version: %s.%s.%s%s" % (options.ver[0], options.ver[1], options.ver[2], options.ver[3])
+  download_sources(options)
+  parse_spec(options)
 #  Enable after write make rpm
 #  archive(options)
-  if args.dlcfg:
-    download_configs(options)
   sys.exit(0)
 
 if __name__ == "__main__":
