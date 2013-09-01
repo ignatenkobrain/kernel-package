@@ -80,18 +80,18 @@ def download_sources(options):
 
 def parse_spec(options):
   lines = []
-  regexp_comment = re.compile(r"^[ ]*#")
-  regexp_sources = re.compile(r"^Source[1-9][0-9]+:")
-  regexp_newline = re.compile(r"^\n")
   with open("%s/%s.spec" % (options.directory, options.name), "r") as f:
     lines = f.readlines()
   f = open("%s/%s.spec" % (options.directory, options.name), "w")
   for line in lines:
+    for config in options.configs:
+      if re.search("^Source[1-9][0-9]+: %s" % config, line):
+        f.write(line)
     if re.search ("^%changelog", line):
       break
-    if regexp_comment.search(line) is None and \
-       regexp_sources.search(line) is None and \
-       regexp_newline.search(line) is None:
+    if not re.search("^[ ]*#", line) and \
+       not re.search("^Source[1-9][0-9]+: ", line) and \
+       not re.search("^\n$", line):
       if re.search ("^Source0: ", line):
         line = re.sub(r" .*$", " %s" % options.archive, line)
       if re.search("%global released_kernel [01]", line):
