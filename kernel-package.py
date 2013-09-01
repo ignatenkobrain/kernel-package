@@ -88,12 +88,12 @@ def parse_spec(options):
   for line in lines:
     if '%changelog' in line:
       break
-    if regexp_comment.search(line) is None:
-      if regexp_sources.search(line) is None:
-        if regexp_newline.search(line) is None:
-          if 'Source0: ' in line:
-            line = re.sub(r" .*$", " %s" % options.archive, line)
-          f.write(line)
+    if regexp_comment.search(line) is None and \
+       regexp_sources.search(line) is None and \
+       regexp_newline.search(line) is None:
+      if 'Source0: ' in line:
+        line = re.sub(r" .*$", " %s" % options.archive, line)
+      f.write(line)
   f.close()
 
 def get_kernel_info(options):
