@@ -18,7 +18,8 @@ import urlgrabber
 import urlgrabber.progress
 import git
 import re
-import sh
+import subprocess
+import stat
 
 WORK_DIR = os.path.dirname(sys.argv[0])
 repo = git.Repo(WORK_DIR)
@@ -31,6 +32,7 @@ class Options():
   prefix = None
   format = "tar.gz"
   archive = "%s-%s.%s" % (name, sha, format)
+  patch = None
   directory = "sources"
   ver = [None, None, None, None, None]
   released = False
@@ -46,6 +48,7 @@ class Options():
       pass
   except IOError:
     sources.append("config-local")
+  execute = ["merge.pl", "mod-extra.sh", "mod-sign.sh"]
 
 class Parser(argparse.ArgumentParser):
   def error(self, message):
@@ -74,6 +77,12 @@ def download_sources(options):
 def download_spec(options):
   download_file("%s.spec" % options.name)
 
+def set_execute(options):
+  for source in options.execute:
+    src = "%s/%s" % (options.directory, source)
+    st = os.stat(src)
+    os.chmod(src, st.st_mode | stat.S_IEXEC)
+
 def download_files(options):
   try:
     os.makedirs(options.directory)
@@ -81,6 +90,7 @@ def download_files(options):
     pass
   download_sources(options)
   download_spec(options)
+  set_execute(options)
 
 def parse_spec(options):
   lines = []
@@ -102,14 +112,13 @@ def parse_spec(options):
       lines_parsed[i] = re.sub(r"[01]", "1" if options.released else "0", lines_parsed[i])
       i += 1
     elif re.search("^%define base_sublevel [0-9]+", lines_parsed[i]):
-      lines_parsed[i] = re.sub(r"[0-9]+", options.ver[1], lines_parsed[i])
+      lines_parsed[i] = re.sub(r"[0-9]+", options.ver[1] if options.released else (str(int(options.ver[1]) - 1)), lines_parsed[i])
       i += 1
     elif re.search("^%define stable_update [0-9]+", lines_parsed[i]):
       lines_parsed[i] = re.sub(r"[0-9]+", options.ver[2], lines_parsed[i])
       i += 1
     elif re.search("^%define rcrev [0-9]+", lines_parsed[i]):
-      lines_parsed[i] = re.sub(r"[0-9]+", re.sub(r"[^0-9]", "", options.ver[3]) if not options.released \
-                                          else "0", lines_parsed[i])
+      lines_parsed[i] = re.sub(r"[0-9]+", re.sub(r"[^0-9]", "", options.ver[3]) if not options.released else "0", lines_parsed[i])
       i += 1
     elif re.search("^%define gitrev [0-9]+", lines_parsed[i]):
       lines_parsed[i] = re.sub(r"[0-9]+", "0", lines_parsed[i])
@@ -123,19 +132,9 @@ def parse_spec(options):
     elif re.search("^Source0: ", lines_parsed[i]):
       lines_parsed[i] = re.sub(r" .*$", " %s" % options.archive, lines_parsed[i])
       i += 1
-    elif re.search("^[ ]*(Patch[0-9]+:|Apply(Optional|)Patch) ", lines_parsed[i]):
+    elif re.search("^(Patch[0-9]+:|Apply(Optional|)Patch) ", lines_parsed[i]):
       lines_parsed[i] = re.sub(r"^", "#", lines_parsed[i])
       i += 1
-#    elif re.search("^Source[1-9][0-9]+: ", lines_parsed[i]):
-#      flag = True
-#      for config in options.sources:
-#        if re.search("^Source[1-9][0-9]+: %s" % config, lines_parsed[i]):
-#          flag = False
-#          break
-#      if flag:
-#        del lines_parsed[i]
-#      else:
-#        i += 1
     else:
       i += 1
   f = open("%s/%s.spec" % (options.directory, options.name), "w")
@@ -157,22 +156,37 @@ def get_kernel_info(options):
   else:
     options.released = False
 
+def make_patch(options):
+  options.patchfile = "%s/patch-%s.%s%s" % (options.directory, options.ver[0], options.ver[1], options.ver[3])
+  patch = open(options.patchfile, "w")
+  p = subprocess.Popen("git diff %s v%s.%s" % (options.sha, options.ver[0], \
+                                               (int(options.ver[1]) - 1)), shell=True, universal_newlines=True, stdout=patch)
+  p.wait()
+  patch.flush()
+  patch.close()
+  try:
+    os.remove("%s.xz" % options.patchfile)
+  except OSError:
+    pass
+  subprocess.call(["xz", "-z", options.patchfile])
+
 def main():
   parser = Parser(description="Make RPM from upstream linux kernel easy")
 #  set_args(parser)
   args = parser.parse_args()
   options = Options()
   get_kernel_info(options)
-#  options.prefix = "linux-%s.%s/" % (options.ver[0], options.ver[1] if options.released else (int(options.ver[1]) - 1))
-  options.prefix = "linux-%s.%s/" % (options.ver[0], options.ver[1])
+  options.prefix = "linux-%s.%s/" % (options.ver[0], options.ver[1] if options.released else (int(options.ver[1]) - 1))
   if options.released:
     print "Version: %s.%s.%s" % (options.ver[0], options.ver[1], options.ver[2])
   else:
     print "Version: %s.%s.%s%s" % (options.ver[0], options.ver[1], options.ver[2], options.ver[3])
   print "Codename: %s" % options.ver[4]
   download_files(options)
+  if not options.released:
+    make_patch(options)
   parse_spec(options)
-#  archive(options)
+  archive(options)
   sys.exit(0)
 
 if __name__ == "__main__":
