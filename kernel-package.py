@@ -113,6 +113,9 @@ def parse_spec(options):
     elif re.search("^Source0: ", lines_parsed[i]):
       lines_parsed[i] = re.sub(r" .*$", " %s" % options.archive, lines_parsed[i])
       i += 1
+    elif re.search("^(Patch[0-9]+:|Apply(Optional|)Patch) ", lines_parsed[i]):
+      lines_parsed[i] = re.sub(r"^", "#", lines_parsed[i])
+      i += 1
 #    elif re.search("^Source[1-9][0-9]+: ", lines_parsed[i]):
 #      flag = True
 #      for config in options.sources:
