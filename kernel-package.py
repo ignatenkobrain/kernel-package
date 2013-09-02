@@ -28,9 +28,9 @@ repo.config_reader()
 class Options():
   name = "kernel"
   sha = repo.head.commit.hexsha
-  prefix = "%s-%s" % (name, sha)
+  prefix = None
   format = "tar.gz"
-  archive = "%s.%s" % (prefix, format)
+  archive = "%s-%s.%s" % (name, sha, format)
   directory = "sources"
   ver = [None, None, None, None, None]
   released = False
@@ -58,16 +58,11 @@ def set_args(parser):
                       help="enable patches from sources/ directory")
 
 def archive(options):
-  os.makedirs(options.directory)
   f = open("%s/%s" % (options.directory, options.archive), "w")
   repo.archive(f, prefix=options.prefix, format=options.format)
   f.close()
 
 def download_file(file_name):
-  try:
-    os.makedirs("sources")
-  except OSError:
-    pass
   pg = urlgrabber.progress.TextMeter()
   urlgrabber.urlgrab("http://pkgs.fedoraproject.org/cgit/kernel.git/plain/%s" % file_name, \
                      "sources/%s" % file_name, progress_obj=pg)
@@ -80,6 +75,10 @@ def download_spec(options):
   download_file("%s.spec" % options.name)
 
 def download_files(options):
+  try:
+    os.makedirs(options.directory)
+  except OSError:
+    pass
   download_sources(options)
   download_spec(options)
 
@@ -124,7 +123,7 @@ def parse_spec(options):
     elif re.search("^Source0: ", lines_parsed[i]):
       lines_parsed[i] = re.sub(r" .*$", " %s" % options.archive, lines_parsed[i])
       i += 1
-    elif re.search("^(Patch[0-9]+:|Apply(Optional|)Patch) ", lines_parsed[i]):
+    elif re.search("^[ ]*(Patch[0-9]+:|Apply(Optional|)Patch) ", lines_parsed[i]):
       lines_parsed[i] = re.sub(r"^", "#", lines_parsed[i])
       i += 1
 #    elif re.search("^Source[1-9][0-9]+: ", lines_parsed[i]):
@@ -164,6 +163,8 @@ def main():
   args = parser.parse_args()
   options = Options()
   get_kernel_info(options)
+#  options.prefix = "linux-%s.%s/" % (options.ver[0], options.ver[1] if options.released else (int(options.ver[1]) - 1))
+  options.prefix = "linux-%s.%s/" % (options.ver[0], options.ver[1])
   if options.released:
     print "Version: %s.%s.%s" % (options.ver[0], options.ver[1], options.ver[2])
   else:
@@ -171,7 +172,6 @@ def main():
   print "Codename: %s" % options.ver[4]
   download_files(options)
   parse_spec(options)
-#  Enable after write make rpm
 #  archive(options)
   sys.exit(0)
 
