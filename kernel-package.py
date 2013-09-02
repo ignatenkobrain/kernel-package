@@ -102,6 +102,12 @@ def parse_spec(options):
     elif re.search("^%global released_kernel [01]", lines_parsed[i]):
       lines_parsed[i] = re.sub(r"[01]", "1" if options.released else "0", lines_parsed[i])
       i += 1
+    elif re.search("^%define base_sublevel [0-9]+", lines_parsed[i]):
+      lines_parsed[i] = re.sub(r"[0-9]+", options.ver[1], lines_parsed[i])
+      i += 1
+    elif re.search("^%define stable_update [0-9]+", lines_parsed[i]):
+      lines_parsed[i] = re.sub(r"[0-9]+", options.ver[2], lines_parsed[i])
+      i += 1
     elif re.search("^%define rcrev [0-9]+", lines_parsed[i]):
       lines_parsed[i] = re.sub(r"[0-9]+", re.sub(r"[^0-9]", "", options.ver[3]) if not options.released \
                                           else "0", lines_parsed[i])
