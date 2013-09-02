@@ -131,6 +131,9 @@ def parse_spec(options):
     elif re.search("^%define with_debuginfo ", lines[i]):
       lines[i] = re.sub(r"[01]}(.*) [01]", r"1}\1 0", lines[i])
       i += 1
+    elif re.search("^%define with_perf ", lines[i]):
+      lines[i] = re.sub(r"[01]}(.*) [01]", r"1}\1 0", lines[i])
+      i += 1
     elif re.search("^Source0: ", lines[i]):
       lines[i] = re.sub(r" .*$", " %s" % options.archive, lines[i])
       i += 1
