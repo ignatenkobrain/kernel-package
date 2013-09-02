@@ -94,54 +94,51 @@ def download_files(options):
 
 def parse_spec(options):
   lines = []
-  filters = ["^[ ]*#", "^\n"]
-  expressions = [re.compile(x) for x in filters]
   with open("%s/%s.spec" % (options.directory, options.name), "r") as f:
     lines = f.readlines()
-  lines_parsed = [s for s in lines if not len(filter(lambda re: re.match(s), expressions))]
-  lines = []
   i = 0
-  while i < len(lines_parsed):
-    if re.search("^%changelog", lines_parsed[i]):
+  while i < len(lines):
+    if re.search("^%changelog", lines[i]):
       try:
         while True:
-          del lines_parsed[i]
+          del lines[i]
       except IndexError:
         pass
-    elif re.search("^%global released_kernel [01]", lines_parsed[i]):
-      lines_parsed[i] = re.sub(r"[01]", "1" if options.released else "0", lines_parsed[i])
+    elif re.search("^%global released_kernel [01]", lines[i]):
+      lines[i] = re.sub(r"[01]", "1" if options.released else "0", lines[i])
       i += 1
-    elif re.search("^%define base_sublevel [0-9]+", lines_parsed[i]):
-      lines_parsed[i] = re.sub(r"[0-9]+", options.ver[1] if options.released else (str(int(options.ver[1]) - 1)), lines_parsed[i])
+    elif re.search("^%define base_sublevel [0-9]+", lines[i]):
+      lines[i] = re.sub(r"[0-9]+", options.ver[1] if options.released else (str(int(options.ver[1]) - 1)), lines[i])
       i += 1
-    elif re.search("^%define stable_update [0-9]+", lines_parsed[i]):
-      lines_parsed[i] = re.sub(r"[0-9]+", options.ver[2], lines_parsed[i])
+    elif re.search("^%define stable_update [0-9]+", lines[i]):
+      lines[i] = re.sub(r"[0-9]+", options.ver[2], lines[i])
       i += 1
-    elif re.search("^%define rcrev [0-9]+", lines_parsed[i]):
-      lines_parsed[i] = re.sub(r"[0-9]+", re.sub(r"[^0-9]", "", options.ver[3]) if not options.released else "0", lines_parsed[i])
+    elif re.search("^%define rcrev [0-9]+", lines[i]):
+      lines[i] = re.sub(r"[0-9]+", re.sub(r"[^0-9]", "", options.ver[3]) if not options.released else "0", lines[i])
       i += 1
-    elif re.search("^%define gitrev [0-9]+", lines_parsed[i]):
-      lines_parsed[i] = re.sub(r"[0-9]+", "0", lines_parsed[i])
+    elif re.search("^%define gitrev [0-9]+", lines[i]):
+      lines[i] = re.sub(r"[0-9]+", "0", lines[i])
       i += 1
-    elif re.search("^%define debugbuildsenabled [01]", lines_parsed[i]):
-      lines_parsed[i] = re.sub(r"[01]", "0", lines_parsed[i])
+    elif re.search("^%define debugbuildsenabled [01]", lines[i]):
+      lines[i] = re.sub(r"[01]", "0", lines[i])
       i += 1
-    elif re.search("^%define rawhide_skip_docs [01]", lines_parsed[i]):
-      lines_parsed[i] = re.sub(r"[01]", "1", lines_parsed[i])
+    elif re.search("^%define rawhide_skip_docs [01]", lines[i]):
+      lines[i] = re.sub(r"[01]", "1", lines[i])
       i += 1
-    elif re.search("^%define with_vanilla ", lines_parsed[i]):
-      lines_parsed[i] = re.sub(r"[01]}(.*) [01]", r"0}\1 1", lines_parsed[i])
+    elif re.search("^%define with_vanilla ", lines[i]):
+      lines[i] = re.sub(r"[01]}(.*) [01]", r"0}\1 1", lines[i])
       i += 1
-    elif re.search("^Source0: ", lines_parsed[i]):
-      lines_parsed[i] = re.sub(r" .*$", " %s" % options.archive, lines_parsed[i])
+    elif re.search("^Source0: ", lines[i]):
+      lines[i] = re.sub(r" .*$", " %s" % options.archive, lines[i])
       i += 1
-    elif re.search("^(Patch[0-9]+:|Apply(Optional|)Patch) ", lines_parsed[i]):
-      lines_parsed[i] = re.sub(r"^", "#", lines_parsed[i])
+    elif re.search("^(Patch[0-9]+:|Apply(Optional|)Patch) ", lines[i]) and \
+         re.search("^Patch00: patch-3.%{upstream_sublevel}-rc%{rcrev}.xz", lines[i]) is None:
+      lines[i] = re.sub(r"^", "#", lines[i])
       i += 1
     else:
       i += 1
   f = open("%s/%s.spec" % (options.directory, options.name), "w")
-  for line in lines_parsed:
+  for line in lines:
     f.write(line)
   f.close()
 
