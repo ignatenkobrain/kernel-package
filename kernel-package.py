@@ -163,18 +163,19 @@ def get_kernel_info(options):
     options.released = False
 
 def make_patch(options):
-  options.patchfile = "%s/patch-%s.%s%s" % (options.directory, options.ver[0], options.ver[1], options.ver[3])
-  patch = open(options.patchfile, "w")
-  p = subprocess.Popen("git diff %s v%s.%s" % (options.sha, options.ver[0], \
-                                               (int(options.ver[1]) - 1)), shell=True, universal_newlines=True, stdout=patch)
-  p.wait()
-  patch.flush()
-  patch.close()
-  try:
-    os.remove("%s.xz" % options.patchfile)
-  except OSError:
-    pass
-  subprocess.call(["xz", "-z", options.patchfile])
+  if not options.released:
+    options.patchfile = "%s/patch-%s.%s%s" % (options.directory, options.ver[0], options.ver[1], options.ver[3])
+    patch = open(options.patchfile, "w")
+    p = subprocess.Popen("git diff %s v%s.%s" % (options.sha, options.ver[0], \
+                                                 (int(options.ver[1]) - 1)), shell=True, universal_newlines=True, stdout=patch)
+    p.wait()
+    patch.flush()
+    patch.close()
+    try:
+      os.remove("%s.xz" % options.patchfile)
+    except OSError:
+      pass
+    subprocess.call(["xz", "-z", options.patchfile])
 
 def main():
   parser = Parser(description="Make RPM from upstream linux kernel easy")
@@ -189,8 +190,7 @@ def main():
     print "Version: %s.%s.%s%s" % (options.ver[0], options.ver[1], options.ver[2], options.ver[3])
   print "Codename: %s" % options.ver[4]
   download_files(options)
-  if not options.released:
-    make_patch(options)
+  make_patch(options)
   parse_spec(options)
   archive(options)
   sys.exit(0)
