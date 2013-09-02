@@ -124,10 +124,13 @@ def parse_spec(options):
       lines_parsed[i] = re.sub(r"[0-9]+", "0", lines_parsed[i])
       i += 1
     elif re.search("^%define debugbuildsenabled [01]", lines_parsed[i]):
-      lines_parsed[i] = re.sub(r"[01]", "1", lines_parsed[i])
+      lines_parsed[i] = re.sub(r"[01]", "0", lines_parsed[i])
       i += 1
     elif re.search("^%define rawhide_skip_docs [01]", lines_parsed[i]):
-      lines_parsed[i] = re.sub(r"[01]", "0", lines_parsed[i])
+      lines_parsed[i] = re.sub(r"[01]", "1", lines_parsed[i])
+      i += 1
+    elif re.search("^%define with_vanilla ", lines_parsed[i]):
+      lines_parsed[i] = re.sub(r"[01]}(.*) [01]", r"0}\1 1", lines_parsed[i])
       i += 1
     elif re.search("^Source0: ", lines_parsed[i]):
       lines_parsed[i] = re.sub(r" .*$", " %s" % options.archive, lines_parsed[i])
