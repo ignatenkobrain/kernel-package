@@ -31,7 +31,6 @@ class Options():
   sha = repo.head.commit.hexsha
   prefix = None
   format = "tar.gz"
-  archive = "%s-%s.%s" % (name, sha, format)
   patch = None
   directory = "sources"
   ver = [None, None, None, None, None]
@@ -61,9 +60,13 @@ def set_args(parser):
                       help="enable patches from sources/ directory")
 
 def archive(options):
-  f = open("%s/%s" % (options.directory, options.archive), "w")
-  repo.archive(f, prefix=options.prefix, format=options.format)
+  if not options.released:
+    repo.git.checkout("v%s.%s" % (options.ver[0], (int(options.ver[1]) - 1)))
+  f = open("%s/%s.%s" % (options.directory, options.prefix, options.format), "w")
+  repo.archive(f, prefix="%s/" % options.prefix, format=options.format)
   f.close()
+  if not options.released:
+    repo.git.checkout(options.sha)
 
 def download_file(file_name):
   pg = urlgrabber.progress.TextMeter()
@@ -126,7 +129,7 @@ def parse_spec(options):
       lines[i] = re.sub(r"[01]", "1", lines[i])
       i += 1
     elif re.search("^%define with_vanilla ", lines[i]):
-      lines[i] = re.sub(r"[01]}(.*) [01]", r"0}\1 1", lines[i])
+      lines[i] = re.sub(r"[01]}(.*) [01]", r"1}\1 0", lines[i])
       i += 1
     elif re.search("^%define with_debuginfo ", lines[i]):
       lines[i] = re.sub(r"[01]}(.*) [01]", r"1}\1 0", lines[i])
@@ -135,7 +138,7 @@ def parse_spec(options):
       lines[i] = re.sub(r"[01]}(.*) [01]", r"1}\1 0", lines[i])
       i += 1
     elif re.search("^Source0: ", lines[i]):
-      lines[i] = re.sub(r" .*$", " %s" % options.archive, lines[i])
+      lines[i] = re.sub(r" .*$", " %s.%s" % (options.prefix, options.format), lines[i])
       i += 1
     elif re.search("^(Patch[0-9]+:|Apply(Optional|)Patch) ", lines[i]) and \
          re.search("^Patch00: patch-3.%{upstream_sublevel}-rc%{rcrev}.xz", lines[i]) is None:
@@ -166,8 +169,8 @@ def make_patch(options):
   if not options.released:
     options.patchfile = "%s/patch-%s.%s%s" % (options.directory, options.ver[0], options.ver[1], options.ver[3])
     patch = open(options.patchfile, "w")
-    p = subprocess.Popen("git diff %s v%s.%s" % (options.sha, options.ver[0], \
-                                                 (int(options.ver[1]) - 1)), shell=True, universal_newlines=True, stdout=patch)
+    p = subprocess.Popen("git diff v%s.%s %s" % (options.ver[0], (int(options.ver[1]) - 1), \
+                                                 options.sha), shell=True, universal_newlines=True, stdout=patch)
     p.wait()
     patch.flush()
     patch.close()
@@ -183,7 +186,7 @@ def main():
   args = parser.parse_args()
   options = Options()
   get_kernel_info(options)
-  options.prefix = "linux-%s.%s/" % (options.ver[0], options.ver[1] if options.released else (int(options.ver[1]) - 1))
+  options.prefix = "linux-%s.%s" % (options.ver[0], options.ver[1] if options.released else (int(options.ver[1]) - 1))
   if options.released:
     print "Version: %s.%s.%s" % (options.ver[0], options.ver[1], options.ver[2])
   else:
