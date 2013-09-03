@@ -60,6 +60,8 @@ class Parser(argparse.ArgumentParser):
 def set_args(parser):
   parser.add_argument("--check-configs", dest="chk_config", action="store_true", \
                       help="enable check for new CONFIG options")
+  parser.add_argument("--separate-debug", dest="separate_debug", action="store_true", \
+                      help="separate debug kernel and main kernel")
 
 def archive(options):
   if not options.released:
@@ -131,7 +133,7 @@ def parse_spec(options, args):
       lines[i] = re.sub(r"[0-9]+", "0", lines[i])
       i += 1
     elif re.search("^%define debugbuildsenabled [01]", lines[i]):
-      lines[i] = re.sub(r"[01]", "0", lines[i])
+      lines[i] = re.sub(r"[01]", "1" if args.separate_debug else "0", lines[i])
       i += 1
     elif re.search("^%define rawhide_skip_docs [01]", lines[i]):
       lines[i] = re.sub(r"[01]", "1", lines[i])
