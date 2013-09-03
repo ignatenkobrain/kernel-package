@@ -21,6 +21,7 @@ import re
 import subprocess
 import stat
 import glob
+import shutil
 
 WORK_DIR = os.path.dirname(sys.argv[0])
 repo = git.Repo(WORK_DIR)
@@ -219,8 +220,8 @@ def clean_tree(options):
     try:
       os.remove(to_clean)
     except OSError, e:
-      if e.errno == 21:
-        os.removedirs(to_clean)
+      if e.errno == 21 or e.errno == 39:
+        shutil.rmtree(to_clean)
 
 def main():
   parser = Parser(description="Make RPM from upstream linux kernel easy")
