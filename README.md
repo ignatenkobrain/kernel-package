@@ -6,10 +6,10 @@ Make RPMs from upstream kernel easy.
 Requirements
 ------------
 
-* python
-* rpmbuild
-* mock
-* git
+* python for run kernel-package
+* rpmbuild for make src.rpm
+* mock for make rpms from src.rpm
+* git for get upstream Linus sources
 
 How to use
 ----------
@@ -23,14 +23,14 @@ How to use
 
 
 ```
-$ git clone git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git linux
+$ git clone git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
 $ cd linux
 $ /path/to/kernel-package.py
 $ mock -r fedora-19-x86_64 --rebuild sources/*.src.rpm --resultdir sources/rpms
 # yum install sources/rpms/*.rpm
 ```
 
-TODO
+Known issues
 ----
 
-* Support linux-stable git tree
+* Support linux-stable git tree. I don't like to support.
