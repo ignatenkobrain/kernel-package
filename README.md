@@ -25,6 +25,5 @@ $ mock -r fedora-19-x86_64 --rebuild sources/*.src.rpm --resultdir sources/rpms
 TODO
 ----
 
-1. Automation make rpm
+1. Support automatically add user-patches from sources/ directory
 2. Support linux-stable git tree
-3. Support automatically add user-patches from sources/ directory
