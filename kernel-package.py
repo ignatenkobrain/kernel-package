@@ -200,10 +200,6 @@ def make_patch(options):
     p.wait()
     patch.flush()
     patch.close()
-    try:
-      os.remove("%s.xz" % options.patchfile)
-    except OSError:
-      pass
     subprocess.call(["xz", "-z", options.patchfile])
 
 def make_srpm(options):
