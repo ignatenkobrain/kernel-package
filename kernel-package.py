@@ -58,8 +58,8 @@ class Parser(argparse.ArgumentParser):
     sys.exit(2)
 
 def set_args(parser):
-  parser.add_argument("--with-patches", dest="patches", action="store_true", \
-                      help="enable patches from sources/ directory")
+  parser.add_argument("--check-configs", dest="chk_config", action="store_true", \
+                      help="enable check for new CONFIG options")
 
 def archive(options):
   if not options.released:
@@ -97,7 +97,7 @@ def download_files(options):
   download_spec(options)
   set_execute(options)
 
-def parse_spec(options):
+def parse_spec(options, args):
   lines = []
   with open("%s/%s.spec" % (options.directory, options.name), "r") as f:
     lines = f.readlines()
@@ -145,7 +145,7 @@ def parse_spec(options):
     elif re.search("^%define with_perf ", lines[i]):
       lines[i] = re.sub(r"[01]}(.*) [01]", r"1}\1 0", lines[i])
       i += 1
-    elif re.search("^%define listnewconfig_fail [01]", lines[i]):
+    elif re.search("^%define listnewconfig_fail [01]", lines[i]) and not args.chk_config:
       lines[i] = re.sub(r"[01]", "0", lines[i])
       i += 1
     elif re.search("^Source0: ", lines[i]):
@@ -227,8 +227,8 @@ def clean_tree(options):
         shutil.rmtree(to_clean)
 
 def main():
-  parser = Parser(description="Make RPM from upstream linux kernel easy")
-#  set_args(parser)
+  parser = Parser(description="Make RPM from upstream linux kernel easy.")
+  set_args(parser)
   args = parser.parse_args()
   options = Options()
   get_kernel_info(options)
@@ -241,7 +241,7 @@ def main():
   clean_tree(options)
   download_files(options)
   make_patch(options)
-  parse_spec(options)
+  parse_spec(options, args)
   archive(options)
   make_srpm(options)
   sys.exit(0)

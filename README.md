@@ -30,6 +30,11 @@ $ mock -r fedora-19-x86_64 --rebuild sources/*.src.rpm --resultdir sources/rpms
 # yum install sources/rpms/*.rpm
 ```
 
+Options
+-------
+
+Use /path/to/kernel-package.py -h for get help about options
+
 Known issues
 ----
 
