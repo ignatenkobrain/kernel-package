@@ -145,6 +145,9 @@ def parse_spec(options):
     elif re.search("^%define with_perf ", lines[i]):
       lines[i] = re.sub(r"[01]}(.*) [01]", r"1}\1 0", lines[i])
       i += 1
+    elif re.search("^%define listnewconfig_fail [01]", lines[i]):
+      lines[i] = re.sub(r"[01]", "0", lines[i])
+      i += 1
     elif re.search("^Source0: ", lines[i]):
       lines[i] = re.sub(r" .*$", " %s.%s" % (options.prefix, options.format), lines[i])
       i += 1
