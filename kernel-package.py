@@ -197,7 +197,10 @@ def clean_tree(options):
     else:
       i += 1
   for to_clean in clean:
-    os.remove(to_clean)
+    try:
+      os.remove(to_clean)
+    except OSError:
+      os.removedirs(to_clean)
 
 def main():
   parser = Parser(description="Make RPM from upstream linux kernel easy")
