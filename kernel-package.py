@@ -100,6 +100,12 @@ def parse_spec(options):
   lines = []
   with open("%s/%s.spec" % (options.directory, options.name), "r") as f:
     lines = f.readlines()
+  first = True
+  patches = glob.glob("%s/*.patch" % options.directory)
+  i = 0
+  while i < len(patches):
+    patches[i] = re.sub("%s/" % options.directory, "", patches[i])
+    i += 1
   i = 0
   while i < len(lines):
     if re.search("^%changelog", lines[i]):
@@ -141,6 +147,19 @@ def parse_spec(options):
     elif re.search("^Source0: ", lines[i]):
       lines[i] = re.sub(r" .*$", " %s.%s" % (options.prefix, options.format), lines[i])
       i += 1
+    elif re.search("^%if !%{nopatches}", lines[i]):
+      i += 1
+      if first:
+        j = 100
+        for patch in patches:
+          lines.insert(i, "Patch%s: %s" % (str(j), patch))
+          j += 1
+          i += 1
+        first = False
+      else:
+        for patch in patches:
+          lines.insert(i, "ApplyPatch %s" % patch)
+          i += 1
     elif re.search("^(Patch[0-9]+:|Apply(Optional|)Patch) ", lines[i]) and \
          re.search("^Patch00: patch-3.%{upstream_sublevel}-rc%{rcrev}.xz", lines[i]) is None:
       lines[i] = re.sub(r"^", "#", lines[i])
