@@ -20,6 +20,7 @@ import git
 import re
 import subprocess
 import stat
+import glob
 
 WORK_DIR = os.path.dirname(sys.argv[0])
 repo = git.Repo(WORK_DIR)
@@ -180,6 +181,24 @@ def make_patch(options):
       pass
     subprocess.call(["xz", "-z", options.patchfile])
 
+def make_srpm(options):
+  subprocess.call(["rpmbuild", "-bs", "%s/%s.spec" % (options.directory, options.name), \
+                   "-D", "_specdir %s/" % options.directory, \
+                   "-D", "_sourcedir %s/" % options.directory, \
+                   "-D", "_srcrpmdir %s/" % options.directory])
+
+def clean_tree(options):
+  clean = glob.glob("%s/*" % options.directory)
+  i = 0
+  while i < len(clean):
+    if re.search(".patch$", clean[i]) or \
+       re.search("config-local$", clean[i]):
+      del clean[i]
+    else:
+      i += 1
+  for to_clean in clean:
+    os.remove(to_clean)
+
 def main():
   parser = Parser(description="Make RPM from upstream linux kernel easy")
 #  set_args(parser)
@@ -192,10 +211,12 @@ def main():
   else:
     print "Version: %s.%s.%s%s" % (options.ver[0], options.ver[1], options.ver[2], options.ver[3])
   print "Codename: %s" % options.ver[4]
+  clean_tree(options)
   download_files(options)
   make_patch(options)
   parse_spec(options)
   archive(options)
+  make_srpm(options)
   sys.exit(0)
 
 if __name__ == "__main__":
