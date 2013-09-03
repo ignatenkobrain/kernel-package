@@ -208,12 +208,15 @@ def make_srpm(options):
                    "-D", "_sourcedir %s/" % options.directory, \
                    "-D", "_srcrpmdir %s/" % options.directory])
 
-def clean_tree(options):
+def clean_tree(options, first_clean):
   clean = glob.glob("%s/*" % options.directory)
   i = 0
   while i < len(clean):
     if re.search(".patch$", clean[i]) or \
        re.search("config-local$", clean[i]):
+      del clean[i]
+    elif re.search(".src.rpm$", clean[i]) and \
+         not first_clean:
       del clean[i]
     else:
       i += 1
@@ -236,12 +239,13 @@ def main():
   else:
     print "Version: %s.%s.%s%s" % (options.ver[0], options.ver[1], options.ver[2], options.ver[3])
   print "Codename: %s" % options.ver[4]
-  clean_tree(options)
+  clean_tree(options, True)
   download_files(options)
   make_patch(options)
   parse_spec(options, args)
   archive(options)
   make_srpm(options)
+  clean_tree(options, False)
   sys.exit(0)
 
 if __name__ == "__main__":
