@@ -3,6 +3,14 @@ kernel-package
 
 Make RPMs from upstream kernel easy.
 
+Requirements
+------------
+
+* python
+* rpmbuild
+* mock
+* git
+
 How to use
 ----------
 
