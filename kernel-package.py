@@ -23,8 +23,7 @@ import stat
 import glob
 import shutil
 
-WORK_DIR = os.path.dirname(sys.argv[0])
-repo = git.Repo(WORK_DIR)
+repo = git.Repo(os.getcwd())
 assert repo.bare == False
 repo.config_reader()
 
