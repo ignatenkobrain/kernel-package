@@ -91,10 +91,6 @@ def set_execute(options):
     os.chmod(src, st.st_mode | stat.S_IEXEC)
 
 def download_files(options):
-  try:
-    os.makedirs(options.directory)
-  except OSError:
-    pass
   download_sources(options)
   download_spec(options)
   set_execute(options)
@@ -209,6 +205,14 @@ def make_srpm(options):
                    "-D", "_srcrpmdir %s/" % options.directory])
 
 def clean_tree(options, first_clean):
+  try:
+    os.stat(options.directory)
+    if not os.access(options.directory, os.W_OK):
+      print "Wtf? I don't have access to \"%s/\" directory!" % options.directory
+      sys.exit(1)
+  except OSError, e:
+    if e.errno == 2:
+      os.makedirs(options.directory)
   clean = glob.glob("%s/*" % options.directory)
   i = 0
   while i < len(clean):
