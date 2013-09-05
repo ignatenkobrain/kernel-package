@@ -54,8 +54,9 @@ class Options():
   try:
     with open("%s/config-local" % directory, "r"):
       pass
-  except IOError:
-    sources.append("config-local")
+  except IOError, e:
+    if e.errno == 2:
+      sources.append("config-local")
   execute = ["merge.pl", "mod-extra.sh", "mod-sign.sh"]
 
 class Parser(argparse.ArgumentParser):
