@@ -26,6 +26,10 @@ import shutil
 repo = git.Repo(os.getcwd())
 assert repo.bare == False
 repo.config_reader()
+if re.search("^git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git$", \
+             repo.remotes.origin.url) is None:
+  print "Wtf? It's not Linus git tree!"
+  sys.exit(1)
 
 class Options():
   name = "kernel"
