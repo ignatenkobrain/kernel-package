@@ -30,8 +30,20 @@ except git.exc.InvalidGitRepositoryError:
   sys.exit(1)
 assert repo.bare == False
 repo.config_reader()
-if re.search("^git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git$", \
-             repo.remotes.origin.url) is None:
+url = repo.remotes.origin.url
+valid_url = ["git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git", \
+             "http://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git", \
+             "https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git", \
+             "https://github.com/torvalds/linux", \
+             "git@github.com:torvalds/linux.git"]
+n = 0
+while n < len(valid_url):
+  if not "%s" % valid_url[n] in url:
+    n += 1
+  else:
+    n = -1
+    break
+if n != -1:
   print "Wtf? It's not Linus git tree!"
   sys.exit(1)
 
