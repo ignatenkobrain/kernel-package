@@ -23,7 +23,11 @@ import stat
 import glob
 import shutil
 
-repo = git.Repo(os.getcwd())
+try:
+  repo = git.Repo(os.getcwd())
+except git.exc.InvalidGitRepositoryError:
+  print "Wtf? This folder not contains valid git repository!"
+  sys.exit(1)
 assert repo.bare == False
 repo.config_reader()
 if re.search("^git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git$", \
