@@ -174,13 +174,13 @@ def parse_spec(options, args):
       if first:
         j = 100
         for patch in patches:
-          lines.insert(i, "Patch%s: %s" % (str(j), patch))
+          lines.insert(i, "Patch%s: %s\n" % (str(j), patch))
           j += 1
           i += 1
         first = False
       else:
         for patch in patches:
-          lines.insert(i, "ApplyPatch %s" % patch)
+          lines.insert(i, "ApplyPatch %s\n" % patch)
           i += 1
     elif re.search("^(Patch[0-9]+:|Apply(Optional|)Patch) ", lines[i]) and \
          re.search("^Patch00: patch-3.%{upstream_sublevel}-rc%{rcrev}.xz", lines[i]) is None:
