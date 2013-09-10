@@ -78,6 +78,8 @@ class Parser(argparse.ArgumentParser):
     sys.exit(2)
 
 def set_args(parser):
+  parser.add_argument("--buildid", dest="buildid", action="store", \
+                      help="user build-id")
   parser.add_argument("--check-configs", dest="chk_config", action="store_true", \
                       help="enable check for new CONFIG options")
   parser.add_argument("--separate-debug", dest="separate_debug", action="store_true", \
@@ -135,6 +137,10 @@ def parse_spec(options, args):
         pass
     elif re.search("^%global released_kernel [01]", lines[i]):
       lines[i] = re.sub(r"[01]", "1" if options.released else "0", lines[i])
+      i += 1
+    elif re.search("^# % define buildid .local", lines[i]) and args.buildid:
+      lines[i] = re.sub("# % ", "%", lines[i])
+      lines[i] = re.sub("local", "%s" % args.buildid, lines[i])
       i += 1
     elif re.search("^%define base_sublevel [0-9]+", lines[i]):
       lines[i] = re.sub(r"[0-9]+", options.ver[1] if options.released else (str(int(options.ver[1]) - 1)), lines[i])
