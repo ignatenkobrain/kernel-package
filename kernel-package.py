@@ -123,6 +123,7 @@ def parse_spec(options, args):
     lines = f.readlines()
   first = True
   patches = glob.glob("%s/*.patch" % options.directory)
+  patches.sort()
   i = 0
   while i < len(patches):
     patches[i] = re.sub("%s/" % options.directory, "", patches[i])
