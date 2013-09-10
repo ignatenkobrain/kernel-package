@@ -154,6 +154,9 @@ def parse_spec(options, args):
     elif re.search("^%define gitrev [0-9]+", lines[i]):
       lines[i] = re.sub(r"[0-9]+", "0", lines[i])
       i += 1
+    elif re.search("^%global baserelease [0-9]+", lines[i]):
+      lines[i] = re.sub(r"[0-9]+", "999" if options.released else "1", lines[i])
+      i += 1
     elif re.search("^%define debugbuildsenabled [01]", lines[i]):
       lines[i] = re.sub(r"[01]", "1" if args.separate_debug else "0", lines[i])
       i += 1
