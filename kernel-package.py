@@ -84,6 +84,8 @@ def set_args(parser):
                       help="enable check for new CONFIG options")
   parser.add_argument("--separate-debug", dest="separate_debug", action="store_true", \
                       help="separate debug kernel and main kernel")
+  parser.add_argument("--without-patches", dest="patches", action="store_false", \
+                      help="build kernel w/o/ patches")
 
 def archive(options):
   if not options.released:
@@ -179,7 +181,7 @@ def parse_spec(options, args):
     elif re.search("^Source0: ", lines[i]):
       lines[i] = re.sub(r" .*$", " %s.%s" % (options.prefix, options.format), lines[i])
       i += 1
-    elif re.search("^%if !%{nopatches}", lines[i]):
+    elif re.search("^%if !%{nopatches}", lines[i]) and args.patches:
       i += 1
       if first:
         j = 100
