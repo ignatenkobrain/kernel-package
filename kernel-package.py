@@ -60,7 +60,7 @@ class Options:
       self.author = self.hcommit.author
       self.summary = self.hcommit.summary
     except LookupError:
-      print "Please fix https://github.com/gitpython-developers/GitPython/issues/102 before!"
+      print "Please fix https://github.com/gitpython-developers/GitPython/pull/57 before!"
       sys.exit(1)
     self.prefix = None
     self.format = "tar.gz"
