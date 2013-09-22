@@ -114,9 +114,9 @@ class Options:
         print "Version: %s.%s+" % (self.ver[0], self.ver[1])
     else:
       if self.released_candidate:
-        print "Version: %s.%s.%s%s" % (self.ver[0], self.ver[1], self.ver[2], self.ver[3])
+        print "Version: %s.%s%s" % (self.ver[0], self.ver[1], self.ver[3])
       else:
-        print "Version: %s.%s.%s%s+" % (self.ver[0], self.ver[1], self.ver[2], self.ver[3])
+        print "Version: %s.%s%s+" % (self.ver[0], self.ver[1], self.ver[3])
     print "Codename: %s" % self.ver[4]
     print "Commit:\n  Author: %s\n  Summary: %s" % (self.author, self.summary)
 
