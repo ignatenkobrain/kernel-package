@@ -89,6 +89,10 @@ class Options:
     self.clean_tree(True)
     sys.exit(0)
 
+  def handler_checkout_clean(self, signum, frame):
+    self.repo.git.checkout(self.sha)
+    self.handler_clean()
+
   def get_kernel_info(self):
     lines = []
     with open("Makefile", "r") as f:
@@ -129,6 +133,23 @@ class Options:
       st = os.stat(src)
       os.chmod(src, st.st_mode | stat.S_IEXEC)
 
+  def download_file(self, file_name):
+    pg = urlgrabber.progress.TextMeter()
+    urlgrabber.urlgrab("http://pkgs.fedoraproject.org/cgit/kernel.git/plain/%s" % file_name, \
+                       "sources/%s" % file_name, progress_obj=pg)
+
+  def download_sources(self):
+    for source in self.sources:
+      self.download_file(source)
+
+  def download_spec(self):
+    self.download_file("%s.spec" % self.name)
+
+  def download_files(self):
+    self.download_spec()
+    self.download_sources()
+    self.set_execute()
+
   def make_patch(self):
     if not self.released:
       self.patchfile = "%s/patch-%s.%s%s" % (self.directory, self.ver[0], self.ver[1], self.ver[3])
@@ -160,6 +181,7 @@ class Options:
       subprocess.call(["xz", "-z", self.patchfile])
 
   def archive(self):
+    signal.signal(signal.SIGINT, self.handler_checkout_clean)
     if not self.released:
       self.repo.git.checkout("v%s.%s" % (self.ver[0], (int(self.ver[1]) - 1)))
     f = open("%s/%s.%s" % (self.directory, self.prefix, self.format), "w")
@@ -167,6 +189,102 @@ class Options:
     f.close()
     if not self.released:
       self.repo.git.checkout(self.sha)
+    signal.signal(signal.SIGINT, self.handler_clean)
+
+  def parse_spec(self, args):
+    lines = []
+    with open("%s/%s.spec" % (self.directory, self.name), "r") as f:
+      lines = f.readlines()
+    first = True
+    patches = glob.glob("%s/*.patch" % self.directory)
+    patches.sort()
+    i = 0
+    while i < len(patches):
+      patches[i] = re.sub("%s/" % self.directory, "", patches[i])
+      i += 1
+    i = 0
+    while i < len(lines):
+      if re.search("^%changelog", lines[i]):
+        try:
+          while True:
+            del lines[i]
+        except IndexError:
+          pass
+      elif re.search("^%global released_kernel [01]", lines[i]):
+        lines[i] = re.sub(r"[01]", "1" if self.released else "0", lines[i])
+        i += 1
+      elif re.search("^# % define buildid .local", lines[i]) and args.buildid:
+        lines[i] = re.sub("# % ", "%", lines[i])
+        lines[i] = re.sub("local", "%s" % args.buildid, lines[i])
+        i += 1
+      elif re.search("^%define base_sublevel [0-9]+", lines[i]):
+        lines[i] = re.sub(r"[0-9]+", self.ver[1] if self.released else (str(int(self.ver[1]) - 1)), lines[i])
+        i += 1
+      elif re.search("^%define stable_update [0-9]+", lines[i]):
+        lines[i] = re.sub(r"[0-9]+", self.ver[2], lines[i])
+        i += 1
+      elif re.search("^%define rcrev [0-9]+", lines[i]):
+        lines[i] = re.sub(r"[0-9]+", re.sub(r"[^0-9]", "", self.ver[3]) if not self.released else "0", lines[i])
+        i += 1
+      elif re.search("^%define gitrev [0-9]+", lines[i]):
+        lines[i] = re.sub(r"[0-9]+", "999" if not self.released_candidate else "0", lines[i])
+        i += 1
+      elif re.search("^%global baserelease [0-9]+", lines[i]):
+        lines[i] = re.sub(r"[0-9]+", "999" if self.released else "1", lines[i])
+        i += 1
+      elif re.search("^%define debugbuildsenabled [01]", lines[i]):
+        lines[i] = re.sub(r"[01]", "1" if args.separate_debug else "0", lines[i])
+        i += 1
+      elif re.search("^%define rawhide_skip_docs [01]", lines[i]):
+        lines[i] = re.sub(r"[01]", "1", lines[i])
+        i += 1
+      elif re.search("^%define with_vanilla ", lines[i]):
+        lines[i] = re.sub(r"[01]}(.*) [01]", r"1}\1 0", lines[i])
+        i += 1
+      elif re.search("^%define with_debuginfo ", lines[i]):
+        lines[i] = re.sub(r"[01]}(.*) [01]", r"1}\1 0", lines[i])
+        i += 1
+      elif re.search("^%define with_perf ", lines[i]):
+        lines[i] = re.sub(r"[01]}(.*) [01]", r"1}\1 0", lines[i])
+        i += 1
+      elif re.search("^%define listnewconfig_fail [01]", lines[i]) and not args.chk_config:
+        lines[i] = re.sub(r"[01]", "0", lines[i])
+        i += 1
+      elif re.search("^Source0: ", lines[i]):
+        lines[i] = re.sub(r" .*$", " %s.%s" % (self.prefix, self.format), lines[i])
+        i += 1
+      elif re.search("^%if !%{nopatches}", lines[i]) and args.patches:
+        i += 1
+        if first:
+          j = 100
+          for patch in patches:
+            lines.insert(i, "Patch%s: %s\n" % (str(j), patch))
+            j += 1
+            i += 1
+          first = False
+        else:
+          for patch in patches:
+            lines.insert(i, "ApplyPatch %s\n" % patch)
+            i += 1
+      elif re.search("^(Patch[0-9]+:|Apply(Optional|)Patch) ", lines[i]) and \
+           (re.search("^Patch00: patch-3.%{upstream_sublevel}-rc%{rcrev}.xz", lines[i]) or \
+            re.search("^Patch01: patch-3.%{upstream_sublevel}-rc%{rcrev}-git%{gitrev}.xz", lines[i]) or \
+            re.search("^Patch00: patch-3.%{base_sublevel}-git%{gitrev}.xz", lines[i])) is None:
+        lines[i] = re.sub(r"^", "#", lines[i])
+        i += 1
+      else:
+        i += 1
+    f = open("%s/%s.spec" % (self.directory, self.name), "w")
+    for line in lines:
+      f.write(line)
+    f.close()
+
+  def make_srpm(self):
+    subprocess.call(["rpmbuild", "-bs", "%s/%s.spec" % (self.directory, self.name), \
+                     "-D", "_specdir %s/" % self.directory, \
+                     "-D", "_sourcedir %s/" % self.directory, \
+                     "-D", "_srcrpmdir %s/" % self.directory])
+
 
   def clean_tree(self, first_clean):
     try:
@@ -211,117 +329,6 @@ def set_args(parser):
   parser.add_argument("--without-patches", dest="patches", action="store_false", \
                       help="build kernel w/o/ patches")
 
-def download_file(file_name):
-  pg = urlgrabber.progress.TextMeter()
-  urlgrabber.urlgrab("http://pkgs.fedoraproject.org/cgit/kernel.git/plain/%s" % file_name, \
-                     "sources/%s" % file_name, progress_obj=pg)
-
-def download_sources(options):
-  for source in options.sources:
-    download_file(source)
-
-def download_spec(options):
-  download_file("%s.spec" % options.name)
-
-def download_files(options):
-  download_sources(options)
-  download_spec(options)
-  options.set_execute()
-
-def parse_spec(options, args):
-  lines = []
-  with open("%s/%s.spec" % (options.directory, options.name), "r") as f:
-    lines = f.readlines()
-  first = True
-  patches = glob.glob("%s/*.patch" % options.directory)
-  patches.sort()
-  i = 0
-  while i < len(patches):
-    patches[i] = re.sub("%s/" % options.directory, "", patches[i])
-    i += 1
-  i = 0
-  while i < len(lines):
-    if re.search("^%changelog", lines[i]):
-      try:
-        while True:
-          del lines[i]
-      except IndexError:
-        pass
-    elif re.search("^%global released_kernel [01]", lines[i]):
-      lines[i] = re.sub(r"[01]", "1" if options.released else "0", lines[i])
-      i += 1
-    elif re.search("^# % define buildid .local", lines[i]) and args.buildid:
-      lines[i] = re.sub("# % ", "%", lines[i])
-      lines[i] = re.sub("local", "%s" % args.buildid, lines[i])
-      i += 1
-    elif re.search("^%define base_sublevel [0-9]+", lines[i]):
-      lines[i] = re.sub(r"[0-9]+", options.ver[1] if options.released else (str(int(options.ver[1]) - 1)), lines[i])
-      i += 1
-    elif re.search("^%define stable_update [0-9]+", lines[i]):
-      lines[i] = re.sub(r"[0-9]+", options.ver[2], lines[i])
-      i += 1
-    elif re.search("^%define rcrev [0-9]+", lines[i]):
-      lines[i] = re.sub(r"[0-9]+", re.sub(r"[^0-9]", "", options.ver[3]) if not options.released else "0", lines[i])
-      i += 1
-    elif re.search("^%define gitrev [0-9]+", lines[i]):
-      lines[i] = re.sub(r"[0-9]+", "999" if not options.released_candidate else "0", lines[i])
-      i += 1
-    elif re.search("^%global baserelease [0-9]+", lines[i]):
-      lines[i] = re.sub(r"[0-9]+", "999" if options.released else "1", lines[i])
-      i += 1
-    elif re.search("^%define debugbuildsenabled [01]", lines[i]):
-      lines[i] = re.sub(r"[01]", "1" if args.separate_debug else "0", lines[i])
-      i += 1
-    elif re.search("^%define rawhide_skip_docs [01]", lines[i]):
-      lines[i] = re.sub(r"[01]", "1", lines[i])
-      i += 1
-    elif re.search("^%define with_vanilla ", lines[i]):
-      lines[i] = re.sub(r"[01]}(.*) [01]", r"1}\1 0", lines[i])
-      i += 1
-    elif re.search("^%define with_debuginfo ", lines[i]):
-      lines[i] = re.sub(r"[01]}(.*) [01]", r"1}\1 0", lines[i])
-      i += 1
-    elif re.search("^%define with_perf ", lines[i]):
-      lines[i] = re.sub(r"[01]}(.*) [01]", r"1}\1 0", lines[i])
-      i += 1
-    elif re.search("^%define listnewconfig_fail [01]", lines[i]) and not args.chk_config:
-      lines[i] = re.sub(r"[01]", "0", lines[i])
-      i += 1
-    elif re.search("^Source0: ", lines[i]):
-      lines[i] = re.sub(r" .*$", " %s.%s" % (options.prefix, options.format), lines[i])
-      i += 1
-    elif re.search("^%if !%{nopatches}", lines[i]) and args.patches:
-      i += 1
-      if first:
-        j = 100
-        for patch in patches:
-          lines.insert(i, "Patch%s: %s\n" % (str(j), patch))
-          j += 1
-          i += 1
-        first = False
-      else:
-        for patch in patches:
-          lines.insert(i, "ApplyPatch %s\n" % patch)
-          i += 1
-    elif re.search("^(Patch[0-9]+:|Apply(Optional|)Patch) ", lines[i]) and \
-         (re.search("^Patch00: patch-3.%{upstream_sublevel}-rc%{rcrev}.xz", lines[i]) or \
-          re.search("^Patch01: patch-3.%{upstream_sublevel}-rc%{rcrev}-git%{gitrev}.xz", lines[i]) or \
-          re.search("^Patch00: patch-3.%{base_sublevel}-git%{gitrev}.xz", lines[i])) is None:
-      lines[i] = re.sub(r"^", "#", lines[i])
-      i += 1
-    else:
-      i += 1
-  f = open("%s/%s.spec" % (options.directory, options.name), "w")
-  for line in lines:
-    f.write(line)
-  f.close()
-
-def make_srpm(options):
-  subprocess.call(["rpmbuild", "-bs", "%s/%s.spec" % (options.directory, options.name), \
-                   "-D", "_specdir %s/" % options.directory, \
-                   "-D", "_sourcedir %s/" % options.directory, \
-                   "-D", "_srcrpmdir %s/" % options.directory])
-
 def main():
   parser = Parser(description="Make RPM from upstream linux kernel easy.")
   set_args(parser)
@@ -329,11 +336,11 @@ def main():
   options = Options(WORK_DIR)
   options.print_info()
   options.clean_tree(True)
-  download_files(options)
-  options.make_patch()
-  parse_spec(options, args)
+  options.download_files()
   options.archive()
-  make_srpm(options)
+  options.make_patch()
+  options.parse_spec(args)
+  options.make_srpm()
   options.clean_tree(False)
   sys.exit(0)
 
