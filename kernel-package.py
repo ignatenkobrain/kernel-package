@@ -23,12 +23,9 @@ import stat
 import glob
 import shutil
 
-try:
-  repo = git.Repo(os.getcwd())
-except git.exc.InvalidGitRepositoryError:
-  print "Wtf? This folder not contains valid git repository!"
-  sys.exit(1)
-assert repo.bare == False
+WORK_DIR = os.getcwd()
+
+"""
 repo.config_reader()
 url = repo.remotes.origin.url
 valid_url = ["git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git", \
@@ -46,30 +43,71 @@ while n < len(valid_url):
 if n != -1:
   print "Wtf? It's not Linus git tree!"
   sys.exit(1)
+"""
 
-class Options():
-  name = "kernel"
-  sha = repo.head.commit.hexsha
-  prefix = None
-  format = "tar.gz"
-  patch = None
-  directory = "sources"
-  ver = [None, None, None, None, None]
-  released = False
-  sources = ["config-arm64", "config-arm-generic", "config-armv7", "config-armv7-generic", \
-             "config-armv7-lpae", "config-debug", "config-generic", "config-i686-PAE", \
-             "config-nodebug", "config-powerpc32-generic", "config-powerpc32-smp", \
-             "config-powerpc64", "config-powerpc64p7", "config-powerpc-generic", "config-s390x", \
-             "config-x86-32-generic", "config-x86_64-generic", "config-x86-generic", \
-             "cpupower.config", "cpupower.service", "Makefile", "Makefile.config", "Makefile.release", \
-             "merge.pl", "mod-extra.list", "mod-extra.sh", "mod-sign.sh", "x509.genkey"]
-  try:
-    with open("%s/config-local" % directory, "r"):
-      pass
-  except IOError, e:
-    if e.errno == 2:
-      sources.append("config-local")
-  execute = ["merge.pl", "mod-extra.sh", "mod-sign.sh"]
+class Options:
+  def __init__(self, work_dir):
+    try:
+      self.repo = git.Repo(work_dir)
+    except git.exc.InvalidGitRepositoryError:
+      print "Wtf? This folder not contains valid git repository!"
+      sys.exit(1)
+    assert self.repo.bare == False
+    self.name = "kernel"
+    self.hcommit = self.repo.head.commit
+    self.sha = self.hcommit.hexsha
+    self.prefix = None
+    self.format = "tar.gz"
+    self.patch = None
+    self.directory = "sources"
+    self.ver = [None, None, None, None, None]
+    self.released = False
+    self.get_kernel_info()
+    self.prefix = "linux-%s.%s" % (self.ver[0], self.ver[1] if self.released else (int(self.ver[1]) - 1))
+    self.sources = ["config-arm64", "config-arm-generic", "config-armv7", "config-armv7-generic", \
+                    "config-armv7-lpae", "config-debug", "config-generic", "config-i686-PAE", \
+                    "config-nodebug", "config-powerpc32-generic", "config-powerpc32-smp", \
+                    "config-powerpc64", "config-powerpc64p7", "config-powerpc-generic", "config-s390x", \
+                    "config-x86-32-generic", "config-x86_64-generic", "config-x86-generic", \
+                    "cpupower.config", "cpupower.service", "Makefile", "Makefile.config", "Makefile.release", \
+                    "merge.pl", "mod-extra.list", "mod-extra.sh", "mod-sign.sh", "x509.genkey"]
+    try:
+      with open("%s/config-local" % self.directory, "r"):
+        pass
+    except IOError, e:
+      if e.errno == 2:
+        self.sources.append("config-local")
+    self.execute = ["merge.pl", "mod-extra.sh", "mod-sign.sh"]
+
+  def get_kernel_info(self):
+    lines = []
+    with open("Makefile", "r") as f:
+      lines = [f.next() for x in xrange(5)]
+    i = 0
+    for line in lines:
+      self.ver[i] = re.sub(r"^.* = (.*)\n$", r"\1", line)
+      i += 1
+    if "=" in self.ver[3]:
+      self.ver[3] = None
+      self.released = True
+    else:
+      self.released = False
+
+  def print_info(self):
+    if self.released:
+      print "Version: %s.%s.%s" % (self.ver[0], self.ver[1], self.ver[2])
+    else:
+      print "Version: %s.%s.%s%s" % (self.ver[0], self.ver[1], self.ver[2], self.ver[3])
+    print "Codename: %s" % self.ver[4]
+
+  def archive(self):
+    if not self.released:
+      self.repo.git.checkout("v%s.%s" % (self.ver[0], (int(self.ver[1]) - 1)))
+    f = open("%s/%s.%s" % (self.directory, self.prefix, self.format), "w")
+    self.repo.archive(f, prefix="%s/" % self.prefix, format=self.format)
+    f.close()
+    if not self.released:
+      self.repo.git.checkout(self.sha)
 
 class Parser(argparse.ArgumentParser):
   def error(self, message):
@@ -86,15 +124,6 @@ def set_args(parser):
                       help="separate debug kernel and main kernel")
   parser.add_argument("--without-patches", dest="patches", action="store_false", \
                       help="build kernel w/o/ patches")
-
-def archive(options):
-  if not options.released:
-    repo.git.checkout("v%s.%s" % (options.ver[0], (int(options.ver[1]) - 1)))
-  f = open("%s/%s.%s" % (options.directory, options.prefix, options.format), "w")
-  repo.archive(f, prefix="%s/" % options.prefix, format=options.format)
-  f.close()
-  if not options.released:
-    repo.git.checkout(options.sha)
 
 def download_file(file_name):
   pg = urlgrabber.progress.TextMeter()
@@ -205,20 +234,6 @@ def parse_spec(options, args):
     f.write(line)
   f.close()
 
-def get_kernel_info(options):
-  lines = []
-  with open("Makefile", "r") as f:
-    lines = [f.next() for x in xrange(5)]
-  i = 0
-  for line in lines:
-    options.ver[i] = re.sub(r"^.* = (.*)\n$", r"\1", line)
-    i += 1
-  if "=" in options.ver[3]:
-    options.ver[3] = None
-    options.released = True
-  else:
-    options.released = False
-
 def make_patch(options):
   if not options.released:
     options.patchfile = "%s/patch-%s.%s%s" % (options.directory, options.ver[0], options.ver[1], options.ver[3])
@@ -267,19 +282,13 @@ def main():
   parser = Parser(description="Make RPM from upstream linux kernel easy.")
   set_args(parser)
   args = parser.parse_args()
-  options = Options()
-  get_kernel_info(options)
-  options.prefix = "linux-%s.%s" % (options.ver[0], options.ver[1] if options.released else (int(options.ver[1]) - 1))
-  if options.released:
-    print "Version: %s.%s.%s" % (options.ver[0], options.ver[1], options.ver[2])
-  else:
-    print "Version: %s.%s.%s%s" % (options.ver[0], options.ver[1], options.ver[2], options.ver[3])
-  print "Codename: %s" % options.ver[4]
+  options = Options(WORK_DIR)
+  options.print_info()
   clean_tree(options, True)
   download_files(options)
   make_patch(options)
   parse_spec(options, args)
-  archive(options)
+  options.archive()
   make_srpm(options)
   clean_tree(options, False)
   sys.exit(0)
