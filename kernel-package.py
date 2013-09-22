@@ -56,12 +56,19 @@ class Options:
     self.name = "kernel"
     self.hcommit = self.repo.head.commit
     self.sha = self.hcommit.hexsha
+    try:
+      self.author = self.hcommit.author
+      self.summary = self.hcommit.summary
+    except LookupError:
+      print "Please fix https://github.com/gitpython-developers/GitPython/issues/102 before!"
+      sys.exit(1)
     self.prefix = None
     self.format = "tar.gz"
     self.patch = None
     self.directory = "sources"
     self.ver = [None, None, None, None, None]
     self.released = False
+    self.released_candidate = False
     self.get_kernel_info()
     self.prefix = "linux-%s.%s" % (self.ver[0], self.ver[1] if self.released else (int(self.ver[1]) - 1))
     self.sources = ["config-arm64", "config-arm-generic", "config-armv7", "config-armv7-generic", \
@@ -92,13 +99,27 @@ class Options:
       self.released = True
     else:
       self.released = False
+      if re.search("^Linus Torvalds$", str(self.author)) and \
+         re.search("^Linux %s.%s%s$" % (self.ver[0], self.ver[1], self.ver[3]), self.summary):
+        print "WWW"
+        self.released_candidate = True
 
   def print_info(self):
     if self.released:
       print "Version: %s.%s.%s" % (self.ver[0], self.ver[1], self.ver[2])
     else:
-      print "Version: %s.%s.%s%s" % (self.ver[0], self.ver[1], self.ver[2], self.ver[3])
+      if self.released_candidate:
+        print "Version: %s.%s.%s%s" % (self.ver[0], self.ver[1], self.ver[2], self.ver[3])
+      else:
+        print "Version: %s.%s.%s%s+" % (self.ver[0], self.ver[1], self.ver[2], self.ver[3])
     print "Codename: %s" % self.ver[4]
+    print "Commit:\n  Author: %s\n  Summary: %s" % (self.author, self.summary)
+
+  def set_execute(self):
+    for source in self.execute:
+      src = "%s/%s" % (self.directory, source)
+      st = os.stat(src)
+      os.chmod(src, st.st_mode | stat.S_IEXEC)
 
   def archive(self):
     if not self.released:
@@ -137,16 +158,10 @@ def download_sources(options):
 def download_spec(options):
   download_file("%s.spec" % options.name)
 
-def set_execute(options):
-  for source in options.execute:
-    src = "%s/%s" % (options.directory, source)
-    st = os.stat(src)
-    os.chmod(src, st.st_mode | stat.S_IEXEC)
-
 def download_files(options):
   download_sources(options)
   download_spec(options)
-  set_execute(options)
+  options.set_execute()
 
 def parse_spec(options, args):
   lines = []
