@@ -97,16 +97,21 @@ class Options:
     if "=" in self.ver[3]:
       self.ver[3] = None
       self.released = True
+      if re.search("^Linus Torvalds$", str(self.author)) and \
+         re.search("^Linux %s.%s$" % (self.ver[0], self.ver[1]), self.summary):
+        self.released_candidate = True
     else:
       self.released = False
       if re.search("^Linus Torvalds$", str(self.author)) and \
          re.search("^Linux %s.%s%s$" % (self.ver[0], self.ver[1], self.ver[3]), self.summary):
-        print "WWW"
         self.released_candidate = True
 
   def print_info(self):
     if self.released:
-      print "Version: %s.%s.%s" % (self.ver[0], self.ver[1], self.ver[2])
+      if self.released_candidate:
+        print "Version: %s.%s" % (self.ver[0], self.ver[1])
+      else:
+        print "Version: %s.%s+" % (self.ver[0], self.ver[1])
     else:
       if self.released_candidate:
         print "Version: %s.%s.%s%s" % (self.ver[0], self.ver[1], self.ver[2], self.ver[3])
@@ -120,6 +125,36 @@ class Options:
       src = "%s/%s" % (self.directory, source)
       st = os.stat(src)
       os.chmod(src, st.st_mode | stat.S_IEXEC)
+
+  def make_patch(self):
+    if not self.released:
+      self.patchfile = "%s/patch-%s.%s%s" % (self.directory, self.ver[0], self.ver[1], self.ver[3])
+      patch = open(self.patchfile, "w")
+      p = subprocess.Popen("git diff v%s.%s v%s.%s%s" % (self.ver[0], (int(self.ver[1]) - 1), \
+                                                         self.ver[0], self.ver[1], self.ver[3]), \
+                                                         shell=True, universal_newlines=True, stdout=patch)
+      p.wait()
+      patch.flush()
+      patch.close()
+      subprocess.call(["xz", "-z", self.patchfile])
+      if not self.released_candidate:
+        self.patchfile = "%s/patch-%s.%s%s-git999" % (self.directory, self.ver[0], self.ver[1], self.ver[3])
+        patch = open(self.patchfile, "w")
+        p = subprocess.Popen("git diff v%s.%s%s %s" % (self.ver[0], self.ver[1], self.ver[3], self.sha), \
+                                                       shell=True, universal_newlines=True, stdout=patch)
+        p.wait()
+        patch.flush()
+        patch.close()
+        subprocess.call(["xz", "-z", self.patchfile])
+    elif not self.released_candidate:
+      self.patchfile = "%s/patch-%s.%s-git999" % (self.directory, self.ver[0], self.ver[1])
+      patch = open(self.patchfile, "w")
+      p = subprocess.Popen("git diff v%s.%s %s" % (self.ver[0], self.ver[1], self.sha), \
+                                                   shell=True, universal_newlines=True, stdout=patch)
+      p.wait()
+      patch.flush()
+      patch.close()
+      subprocess.call(["xz", "-z", self.patchfile])
 
   def archive(self):
     if not self.released:
@@ -199,7 +234,7 @@ def parse_spec(options, args):
       lines[i] = re.sub(r"[0-9]+", re.sub(r"[^0-9]", "", options.ver[3]) if not options.released else "0", lines[i])
       i += 1
     elif re.search("^%define gitrev [0-9]+", lines[i]):
-      lines[i] = re.sub(r"[0-9]+", "0", lines[i])
+      lines[i] = re.sub(r"[0-9]+", "999" if not options.released_candidate else "0", lines[i])
       i += 1
     elif re.search("^%global baserelease [0-9]+", lines[i]):
       lines[i] = re.sub(r"[0-9]+", "999" if options.released else "1", lines[i])
@@ -239,7 +274,9 @@ def parse_spec(options, args):
           lines.insert(i, "ApplyPatch %s\n" % patch)
           i += 1
     elif re.search("^(Patch[0-9]+:|Apply(Optional|)Patch) ", lines[i]) and \
-         re.search("^Patch00: patch-3.%{upstream_sublevel}-rc%{rcrev}.xz", lines[i]) is None:
+         (re.search("^Patch00: patch-3.%{upstream_sublevel}-rc%{rcrev}.xz", lines[i]) or \
+          re.search("^Patch01: patch-3.%{upstream_sublevel}-rc%{rcrev}-git%{gitrev}.xz", lines[i]) or \
+          re.search("^Patch00: patch-3.%{base_sublevel}-git%{gitrev}.xz", lines[i])) is None:
       lines[i] = re.sub(r"^", "#", lines[i])
       i += 1
     else:
@@ -248,17 +285,6 @@ def parse_spec(options, args):
   for line in lines:
     f.write(line)
   f.close()
-
-def make_patch(options):
-  if not options.released:
-    options.patchfile = "%s/patch-%s.%s%s" % (options.directory, options.ver[0], options.ver[1], options.ver[3])
-    patch = open(options.patchfile, "w")
-    p = subprocess.Popen("git diff v%s.%s %s" % (options.ver[0], (int(options.ver[1]) - 1), \
-                                                 options.sha), shell=True, universal_newlines=True, stdout=patch)
-    p.wait()
-    patch.flush()
-    patch.close()
-    subprocess.call(["xz", "-z", options.patchfile])
 
 def make_srpm(options):
   subprocess.call(["rpmbuild", "-bs", "%s/%s.spec" % (options.directory, options.name), \
@@ -301,7 +327,7 @@ def main():
   options.print_info()
   clean_tree(options, True)
   download_files(options)
-  make_patch(options)
+  options.make_patch()
   parse_spec(options, args)
   options.archive()
   make_srpm(options)
