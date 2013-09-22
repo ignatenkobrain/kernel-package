@@ -22,11 +22,13 @@ import subprocess
 import stat
 import glob
 import shutil
+import signal
 
 WORK_DIR = os.getcwd()
 
 class Options:
   def __init__(self, work_dir):
+    signal.signal(signal.SIGINT, self.handler_clean)
     try:
       self.repo = git.Repo(work_dir)
     except git.exc.InvalidGitRepositoryError:
@@ -82,6 +84,10 @@ class Options:
       if e.errno == 2:
         self.sources.append("config-local")
     self.execute = ["merge.pl", "mod-extra.sh", "mod-sign.sh"]
+
+  def handler_clean(self, signum, frame):
+    self.clean_tree(True)
+    sys.exit(0)
 
   def get_kernel_info(self):
     lines = []
@@ -161,6 +167,33 @@ class Options:
     f.close()
     if not self.released:
       self.repo.git.checkout(self.sha)
+
+  def clean_tree(self, first_clean):
+    try:
+      os.stat(self.directory)
+      if not os.access(self.directory, os.W_OK):
+        print "Wtf? I don't have access to \"%s/\" directory!" % self.directory
+        sys.exit(1)
+    except OSError, e:
+      if e.errno == 2:
+        os.makedirs(self.directory)
+    clean = glob.glob("%s/*" % self.directory)
+    i = 0
+    while i < len(clean):
+      if re.search(".patch$", clean[i]) or \
+         re.search("config-local$", clean[i]):
+        del clean[i]
+      elif re.search(".src.rpm$", clean[i]) and \
+           not first_clean:
+        del clean[i]
+      else:
+        i += 1
+    for to_clean in clean:
+      try:
+        os.remove(to_clean)
+      except OSError, e:
+        if e.errno == 21 or e.errno == 39:
+          shutil.rmtree(to_clean)
 
 class Parser(argparse.ArgumentParser):
   def error(self, message):
@@ -289,46 +322,19 @@ def make_srpm(options):
                    "-D", "_sourcedir %s/" % options.directory, \
                    "-D", "_srcrpmdir %s/" % options.directory])
 
-def clean_tree(options, first_clean):
-  try:
-    os.stat(options.directory)
-    if not os.access(options.directory, os.W_OK):
-      print "Wtf? I don't have access to \"%s/\" directory!" % options.directory
-      sys.exit(1)
-  except OSError, e:
-    if e.errno == 2:
-      os.makedirs(options.directory)
-  clean = glob.glob("%s/*" % options.directory)
-  i = 0
-  while i < len(clean):
-    if re.search(".patch$", clean[i]) or \
-       re.search("config-local$", clean[i]):
-      del clean[i]
-    elif re.search(".src.rpm$", clean[i]) and \
-         not first_clean:
-      del clean[i]
-    else:
-      i += 1
-  for to_clean in clean:
-    try:
-      os.remove(to_clean)
-    except OSError, e:
-      if e.errno == 21 or e.errno == 39:
-        shutil.rmtree(to_clean)
-
 def main():
   parser = Parser(description="Make RPM from upstream linux kernel easy.")
   set_args(parser)
   args = parser.parse_args()
   options = Options(WORK_DIR)
   options.print_info()
-  clean_tree(options, True)
+  options.clean_tree(True)
   download_files(options)
   options.make_patch()
   parse_spec(options, args)
   options.archive()
   make_srpm(options)
-  clean_tree(options, False)
+  options.clean_tree(False)
   sys.exit(0)
 
 if __name__ == "__main__":
