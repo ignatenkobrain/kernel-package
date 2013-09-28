@@ -213,9 +213,9 @@ class Options:
       elif re.search("^%global released_kernel [01]", lines[i]):
         lines[i] = re.sub(r"[01]", "1" if self.released else "0", lines[i])
         i += 1
-      elif re.search("^# % define buildid .local", lines[i]) and args.buildid:
+      elif re.search("^# % define buildid .local", lines[i]):
         lines[i] = re.sub("# % ", "%", lines[i])
-        lines[i] = re.sub("local", "%s" % args.buildid, lines[i])
+        lines[i] = re.sub("local", "%s" % args.buildid if args.buildid else self.sha[:8], lines[i])
         i += 1
       elif re.search("^%define base_sublevel [0-9]+", lines[i]):
         lines[i] = re.sub(r"[0-9]+", self.ver[1] if self.released else (str(int(self.ver[1]) - 1)), lines[i])
