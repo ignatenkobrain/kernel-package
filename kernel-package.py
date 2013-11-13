@@ -71,7 +71,7 @@ class Options:
     self.get_kernel_info()
     self.prefix = "linux-%s.%s" % (self.ver[0], self.ver[1] if self.released else (int(self.ver[1]) - 1))
     self.sources = ["config-arm64", "config-arm-generic", "config-armv7", "config-armv7-generic", \
-                    "config-armv7-lpae", "config-debug", "config-generic", "config-i686-PAE", \
+                    "config-armv7-lpae", "config-debug", "config-generic", "config-i686-PAE", "config-no-extra", \
                     "config-nodebug", "config-powerpc32-generic", "config-powerpc32-smp", \
                     "config-powerpc64", "config-powerpc64p7", "config-powerpc-generic", "config-s390x", \
                     "config-x86-32-generic", "config-x86_64-generic", "config-x86-generic", \
@@ -346,3 +346,5 @@ def main():
 
 if __name__ == "__main__":
   main()
+
+# vim:expandtab:tabstop=2:shiftwidth=2:softtabstop=2
