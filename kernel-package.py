@@ -253,6 +253,9 @@ class Options:
       elif re.search("^Source0: ", lines[i]):
         lines[i] = re.sub(r" .*$", " %s.%s" % (self.prefix, self.format), lines[i])
         i += 1
+      elif re.search("^Source[0-9]+: perf-man.tar.gz", lines[i]):
+        lines[i] = re.sub(r"^", "#", lines[i])
+        i += 1
       elif re.search("^%if !%{nopatches}", lines[i]) and args.patches:
         i += 1
         if first:
