@@ -1,8 +1,7 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
-# Copyright 2013 Igor Gnatenko
+# Copyright 2014 Igor Gnatenko
 # Author(s): Igor Gnatenko <i.gnatenko.brain AT gmail DOT com>
-#            Bjorn Esser <bjoern.esser AT gmail DOT com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
