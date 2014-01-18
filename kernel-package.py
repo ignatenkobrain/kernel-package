@@ -198,7 +198,10 @@ class Options:
         i += 1
       elif re.search("^# % define buildid .local", lines[i]):
         lines[i] = re.sub("# % ", "%", lines[i])
-        lines[i] = re.sub("local", "%s" % args.buildid if args.buildid else self.sha[:8], lines[i])
+        if args.buildid:
+          lines[i] = re.sub("local", "%s.%s" % (self.sha[:8], args.buildid), lines[i])
+        else:
+          lines[i] = re.sub("local", "%s" % self.sha[:8], lines[i])
         i += 1
       elif re.search("^%define base_sublevel [0-9]+", lines[i]):
         lines[i] = re.sub(r"[0-9]+", self.ver[1] if self.released else (str(int(self.ver[1]) - 1)), lines[i])
@@ -270,7 +273,6 @@ class Options:
                      "-D", "_specdir %s/" % self.directory, \
                      "-D", "_sourcedir %s/" % self.directory, \
                      "-D", "_srcrpmdir %s/" % self.directory])
-
 
   def clean_tree(self, first_clean):
     try:
