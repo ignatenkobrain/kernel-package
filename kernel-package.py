@@ -35,22 +35,6 @@ class Options:
       sys.exit(1)
     assert self.repo.bare == False
     self.repo.config_reader()
-    url = self.repo.remotes.origin.url
-    valid_url = ["git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git", \
-                 "http://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git", \
-                 "https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git", \
-                 "https://github.com/torvalds/linux", \
-                 "git@github.com:torvalds/linux.git"]
-    n = 0
-    while n < len(valid_url):
-      if not "%s" % valid_url[n] in url:
-        n += 1
-      else:
-        n = -1
-        break
-    if n != -1:
-      print "Wtf? It's not Linus git tree!"
-      sys.exit(1)
     self.name = "kernel"
     self.hcommit = self.repo.head.commit
     self.sha = self.hcommit.hexsha
