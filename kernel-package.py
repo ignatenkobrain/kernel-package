@@ -21,8 +21,16 @@ import stat
 import glob
 import shutil
 import signal
+from HTMLParser import HTMLParser
 
 WORK_DIR = os.getcwd()
+srcs = []
+
+
+class ConfigfilesHTMLParser(HTMLParser):
+    def handle_data(self, data):
+        if data.startswith("config-") and data != "config-local":
+            srcs.append(data)
 
 
 class Options:
@@ -44,6 +52,7 @@ class Options:
         except LookupError:
             print("Please fix https://github.com/gitpython-developers/GitPython/pull/57 before!")
             sys.exit(1)
+        self.git_url = "http://pkgs.fedoraproject.org/cgit/kernel.git"
         self.prefix = None
         self.format = "tar.gz"
         self.patch = None
@@ -53,12 +62,7 @@ class Options:
         self.released_candidate = False
         self.get_kernel_info()
         self.prefix = "linux-{}.{}".format(self.ver[0], self.ver[1] if self.released else (int(self.ver[1]) - 1))
-        self.sources = ["config-arm64", "config-arm-generic", "config-armv7", "config-armv7-generic",
-                        "config-armv7-lpae", "config-debug", "config-generic", "config-i686-PAE", "config-no-extra",
-                        "config-nodebug", "config-powerpc32-generic", "config-powerpc32-smp",
-                        "config-powerpc64", "config-powerpc64le", "config-powerpc64p7", "config-powerpc-generic", "config-s390x",
-                        "config-x86-32-generic", "config-x86_64-generic", "config-x86-generic",
-                        "cpupower.config", "cpupower.service", "Makefile", "Makefile.config", "Makefile.release",
+        self.sources = ["cpupower.config", "cpupower.service", "Makefile", "Makefile.config", "Makefile.release",
                         "merge.pl", "mod-extra.list", "mod-extra.sh", "mod-sign.sh", "x509.genkey"]
         try:
             with open("{}/config-local".format(self.directory), "r"):
@@ -66,7 +70,15 @@ class Options:
         except IOError, e:
             if e.errno == 2:
                 self.sources.append("config-local")
+        self._get_configs()
         self.execute = ["merge.pl", "mod-extra.sh", "mod-sign.sh"]
+
+    def _get_configs(self):
+        tree = urlgrabber.urlread("{}/tree/".format(self.git_url))
+        parser = ConfigfilesHTMLParser()
+        parser.feed(tree)
+        for src in srcs:
+            self.sources.append(src)
 
     def handler_clean(self, signum, frame):
         self.clean_tree(True)
@@ -111,7 +123,7 @@ class Options:
 
     def download_file(self, file_name):
         pg = urlgrabber.progress.TextMeter()
-        urlgrabber.urlgrab("http://pkgs.fedoraproject.org/cgit/kernel.git/plain/{}".format(file_name),
+        urlgrabber.urlgrab("{}/plain/{}".format(self.git_url, file_name),
                            "sources/{}".format(file_name), progress_obj=pg)
 
     def download_sources(self):
@@ -261,9 +273,10 @@ class Options:
             f.close()
 
     def make_srpm(self):
-        subprocess.call(["rpmbuild -bs {directory}/{name}.spec -D '_specdir {directory}/' -D '_sourcedir {directory}/' -D '_srcrpmdir {directory}/'".format(
-                        directory=self.directory, name=self.name)])
-        
+        subprocess.call(["rpmbuild", "-bs", "{}/{}.spec".format(self.directory, self.name),
+                         "-D", "_specdir {}".format(self.directory),
+                         "-D", "_sourcedir {}".format(self.directory),
+                         "-D", "_srcrpmdir {}".format(self.directory)])
 
     def clean_tree(self, first_clean):
         try:
