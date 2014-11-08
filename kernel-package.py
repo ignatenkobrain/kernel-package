@@ -64,6 +64,9 @@ class Options:
         self.prefix = "linux-{}.{}".format(self.ver[0], self.ver[1] if self.released else (int(self.ver[1]) - 1))
         self.sources = ["cpupower.config", "cpupower.service", "Makefile", "Makefile.config", "Makefile.release",
                         "merge.pl", "mod-extra.list", "mod-extra.sh", "mod-sign.sh", "x509.genkey"]
+        self.filters = ["filter-modules.sh", "filter-ppc64p7.sh", "filter-s390x.sh", "filter-ppc64le.sh",
+                        "filter-ppc64.sh", "filter-aarch64.sh", "filter-i686.sh", "filter-armv7hl.sh",
+                        "filter-x86_64.sh"]
         try:
             with open("{}/config-local".format(self.directory), "r"):
                 pass
@@ -129,6 +132,11 @@ class Options:
     def download_sources(self):
         for source in self.sources:
             self.download_file(source)
+        for source in self.filters:
+            self.download_file(source)
+            src = "{}/{}".format(self.directory, source)
+            st = os.stat(src)
+            os.chmod(src, st.st_mode | stat.S_IEXEC)
 
     def download_spec(self):
         self.download_file("{}.spec".format(self.name))
